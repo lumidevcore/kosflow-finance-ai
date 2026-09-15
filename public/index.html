@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.26</title>
+<title>KosFlow Finance v10.27</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -575,7 +575,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <div class="note hidden" id="parentKosField" style="margin-bottom:14px">
             <b>Dana orang tua yang akan dipakai</b><br>
             <span id="parentKosUsePreview">Rp0</span>
-            <div class="range-help">Nominal diambil otomatis dari form “Dana orang tua khusus kos” di bagian atas.</div>
+            <div class="range-help" id="parentKosUseInfo">Nominal dihitung otomatis dari sisa kos setelah kontribusi pribadi.</div>
           </div>
           <div class="note" id="kosFundingHint" style="margin-bottom:14px">
             Nominal pembayaran kos dipisahkan dari uang saku mingguan.
@@ -1056,24 +1056,59 @@ document.querySelectorAll('input[name="fundCategory"]').forEach(cb=>{
   cb.addEventListener('change', scheduleSave);
 });
 }
+function getKosFundingPreview(){
+  const kos=+document.getElementById('kos')?.value||0;
+  const mode=document.getElementById('kosSource')?.value||'self';
+  const selfInput=+document.getElementById('kosSelfContribution')?.value||0;
+  const parentAvailable=+document.getElementById('kosParentContribution')?.value||0;
+
+  let selfUsed=0;
+  let parentUsed=0;
+
+  if(mode==='self'){
+    selfUsed=Math.min(kos, selfInput>0?selfInput:kos);
+  }else if(mode==='parent'){
+    parentUsed=Math.min(kos,parentAvailable);
+  }else{
+    selfUsed=Math.min(kos,Math.max(0,selfInput));
+    const parentNeeded=Math.max(0,kos-selfUsed);
+    parentUsed=Math.min(parentAvailable,parentNeeded);
+  }
+
+  return {
+    kos,mode,selfUsed,parentAvailable,parentUsed,
+    gap:Math.max(0,kos-selfUsed-parentUsed)
+  };
+}
+
 function syncKosFundingUI(){
-  const mode=document.getElementById('kosSource')?.value || 'self';
+  const f=getKosFundingPreview();
   const selfField=document.getElementById('selfKosField');
   const parentField=document.getElementById('parentKosField');
-  const parentValue=+document.getElementById('kosParentContribution')?.value||0;
-  if(selfField) selfField.classList.toggle('hidden', mode==='parent');
-  if(parentField) parentField.classList.toggle('hidden', mode==='self');
+
+  if(selfField) selfField.classList.toggle('hidden', f.mode==='parent');
+  if(parentField) parentField.classList.toggle('hidden', f.mode==='self');
 
   const parentPreview=document.getElementById('parentKosUsePreview');
-  if(parentPreview) parentPreview.textContent=idr(parentValue);
+  if(parentPreview){
+    parentPreview.textContent=idr(f.parentUsed);
+  }
+
+  const parentInfo=document.getElementById('parentKosUseInfo');
+  if(parentInfo){
+    parentInfo.textContent =
+      f.mode==='self'
+        ? 'Dana orang tua tidak dipakai pada skema ini.'
+        : `Tersedia ${idr(f.parentAvailable)} • dipakai otomatis ${idr(f.parentUsed)}${f.gap>0?' • masih kurang '+idr(f.gap):''}`;
+  }
 
   const hint=document.getElementById('kosFundingHint');
   if(hint){
-    hint.textContent = mode==='mixed'
-      ? 'Campuran memakai kontribusi saldo pribadi + dana orang tua yang sudah diisi pada form di atas.'
-      : mode==='parent'
-      ? 'Pembayaran kos memakai dana orang tua dari form di atas. Saldo pribadi tidak ikut dikurangi.'
-      : 'Pembayaran kos memakai kontribusi dari saldo pribadi saja.';
+    hint.textContent = f.mode==='mixed'
+      ? `Campuran: kontribusi pribadi ${idr(f.selfUsed)} + dana orang tua otomatis ${idr(f.parentUsed)}. Dana orang tua hanya mengisi sisa kos sampai total ${idr(f.kos)}.`
+      : f.mode==='parent'
+      ? `Orang tua: dana yang dipakai otomatis ${idr(f.parentUsed)} dari dana tersedia ${idr(f.parentAvailable)}.`
+      : `Uang sendiri: kontribusi pribadi ${idr(f.selfUsed)}.`;
   }
 }
 function addOneCalendarMonth(dateStr){
@@ -1109,15 +1144,11 @@ function compactSnippet(text,max=190){
 }
 function renderBankRateFacts(item){
   const facts=Array.isArray(item?.rate_facts)?item.rate_facts:[];
-  const product=item.product_name || '';
-  const first=facts[0];
-  if(first){
-    return `<small><strong>${product?escapeHtml(product)+' • ':''}${escapeHtml(first.rate||'')}</strong>${first.short_context?' • '+escapeHtml(first.short_context):''}</small>`;
-  }
-  if(item.important_facts?.length){
-    return `<small>${escapeHtml(item.important_facts[0])}</small>`;
-  }
-  return '<small>Rate penting belum berhasil diverifikasi.</small>';
+  if(!facts.length) return '';
+  const product=item.product_name || item.title || '';
+  return facts.slice(0,2).map(f=>
+    `<small><strong>${product?escapeHtml(product)+' • ':''}${escapeHtml(f.rate||'')}</strong>${f.short_context?' • '+escapeHtml(f.short_context):''}</small>`
+  ).join('');
 }
 function sourceHost(url){
   try{return new URL(url).hostname.replace(/^www\\./,'')}catch(e){return url||''}
@@ -1789,8 +1820,9 @@ function updateAutoMoneyPreview(){
   const p=document.getElementById('personalBalancePreview');
   if(p) p.textContent=idr(personalAfter);
 
+  const fundingPreview=getKosFundingPreview();
   const pp=document.getElementById('parentKosPreview');
-  if(pp) pp.textContent=idr(parentPay);
+  if(pp) pp.textContent=idr(fundingPreview.parentUsed);
 
   const miniSafe=document.getElementById('miniSafe');
   if(miniSafe) miniSafe.textContent=idr(autoSafe);
@@ -1824,25 +1856,18 @@ function calcBudget(){
   const bufferEl = document.getElementById('buffer');
   if(bufferEl) bufferEl.value = Math.round(autoSafe);
 
-  // Kontribusi kos bulanan dipisah penuh. Contoh: sendiri 330k + orang tua 370k.
-  let selfContribution = 0;
-  let parentContribution = 0;
-  let sourceLabel = 'Uang sendiri';
-
-  if(kosSource === 'self'){
-    selfContribution = Math.min(kos, selfInput > 0 ? selfInput : kos);
-    sourceLabel = 'Uang sendiri';
-  }else if(kosSource === 'parent'){
-    parentContribution = Math.min(kos, parentInput > 0 ? parentInput : kos);
-    sourceLabel = 'Orang tua';
-  }else{
-    selfContribution = Math.max(0, selfInput);
-    parentContribution = Math.max(0, parentInput);
-    sourceLabel = 'Campuran — uang sendiri + orang tua';
-  }
+  // Dana orang tua pada mode campuran HANYA mengisi sisa kos.
+  // Contoh kos 700k: pribadi 200k -> orang tua 500k; pribadi 330k -> orang tua 370k.
+  const fundingPreview=getKosFundingPreview();
+  const selfContribution=fundingPreview.selfUsed;
+  const parentContribution=fundingPreview.parentUsed;
+  const parentAvailable=fundingPreview.parentAvailable;
+  const sourceLabel = kosSource==='mixed'
+    ? 'Campuran — uang sendiri + orang tua'
+    : kosSource==='parent' ? 'Orang tua' : 'Uang sendiri';
 
   const totalKosFunding = selfContribution + parentContribution;
-  const monthlyKosFundingGap = Math.max(0, kos - totalKosFunding);
+  const monthlyKosFundingGap = fundingPreview.gap;
 
   // Pembayaran awal diambil dari kontribusi pribadi lebih dulu, sisanya dari dana orang tua.
   const initialSelfPaid = Math.min(pay, selfContribution);
@@ -1914,6 +1939,7 @@ function calcBudget(){
     cash_after_initial_kos: personalCashAfterKos,
     personal_available_balance: personalCashAfterKos,
     parent_kos_reserved: parentKosReserved,
+    parent_kos_available: parentAvailable,
 
     allowance: allow,
     weekly_needs: needs,
@@ -2013,7 +2039,8 @@ function buildNotesContext(){
     bayar_awal_hari:budget.initial_days||0,
     sumber_pembayaran_kos:budget.kos_source_label||'',
     kontribusi_pribadi_untuk_kos:budget.kos_self_contribution||0,
-    dana_orang_tua_untuk_kos:budget.kos_parent_contribution||0,
+    dana_orang_tua_tersedia:+document.getElementById('kosParentContribution')?.value||0,
+    dana_orang_tua_yang_dipakai_untuk_kos:budget.kos_parent_contribution||0,
     awal_periode_kos:budget.kos_cycle_start||null,
     akhir_periode_kos:budget.kos_cycle_end||null,
     tanggal_bayar_selanjutnya:budget.next_kos_payment_date||null,
@@ -2062,7 +2089,7 @@ Aturan:
 - Jangan hanya menyalin semua angka.
 - Rangkum kondisi dan prioritas yang paling penting.
 - Pisahkan saldo pribadi, uang saku, pendapatan tambahan, dan dana orang tua untuk kos.
-- Dana orang tua untuk kos bukan saldo pribadi dan bukan modal investasi.
+- Dana orang tua tersedia dan dana orang tua yang benar-benar dipakai untuk kos adalah dua hal berbeda. Pada mode campuran, yang dipakai otomatis hanya sisa kos setelah kontribusi pribadi. Dana orang tua bukan saldo pribadi dan bukan modal investasi.
 - Jika surplus aman investasi = 0, jelaskan bahwa belum ada dana investasi yang benar-benar tersedia saat ini. Gunakan saldo pribadi aktual setelah pembayaran kos pribadi dan kebutuhan minggu ini sebagai dasar. Uang saku adalah pemasukan terpisah, bukan dasar utama dana aman.
 - Sesuaikan rekomendasi bank dengan range bunga pilihan.
 - Jika pencarian saham otomatis aktif, jangan sebut ada budget saham. Saham hanya dicari; jelaskan sistem akan menampilkan kebutuhan dana 1 lot, kekurangan dana, dividen, likuiditas, dan risiko tanpa memotong saldo.
@@ -2088,6 +2115,8 @@ ${JSON.stringify(context)}`;
       const obj=JSON.parse(text);
       if(obj && typeof obj==='object'){
         text=String(
+          obj.output?.catatan_analisis_keuangan ||
+          obj.output?.catatan ||
           obj.catatan_analisis_keuangan ||
           obj.catatan ||
           obj.note ||
@@ -2426,26 +2455,30 @@ ${JSON.stringify(payload)}
       }).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Sistem belum menemukan kandidat saham untuk ditampilkan.</small></div>';
 
     renderFundDiscovery(funds);
-    const bankItems=(banks.items||[]).slice(0,20);
+    const bankItems=(banks.items||[])
+      .filter(x=>Array.isArray(x.rate_facts) && x.rate_facts.length)
+      .slice(0,16);
+
     document.getElementById('research').innerHTML = bankItems.map(x=>{
       const title=x.product_name || x.title || x.category || 'Produk bank';
-      const facts=(x.important_facts||[]).slice(0,6);
+      const facts=(x.important_facts||[]).filter(Boolean).slice(0,5);
+      const rateFacts=(x.rate_facts||[]).slice(0,4);
       const detail=`
         <div class="detail-kv">
           <b>Bank / produk</b><span>${escapeHtml(title)}</span>
+          <b>Bunga</b><span>${escapeHtml(rateFacts.map(f=>f.rate).join(' • ')||'-')}</span>
           <b>Sumber</b><span>${escapeHtml(x.url||'-')}</span>
           <b>Resmi</b><span>${x.official_hint?'Ya':'Belum terverifikasi'}</span>
         </div>
-        ${facts.length?'<ul>'+facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')+'</ul>':''}
-        <p>${escapeHtml(compactSnippet(x.snippet||'',900))}</p>`;
+        ${facts.length?'<ul>'+facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')+'</ul>':''}`;
       return `<div class="source">
         <b>${escapeHtml(title)}</b>
         ${renderBankRateFacts(x)}
-        ${facts[1]?`<small>${escapeHtml(facts[1])}</small>`:''}
+        ${facts[0]?`<small>${escapeHtml(compactSnippet(facts[0],120))}</small>`:''}
         <small>${sourceHost(x.url||'')}</small>
         <div class="card-actions">${detailButton(title,detail)}</div>
       </div>`;
-    }).join('') || '<div class="source"><b>Belum ada hasil bank</b><small>Belum ada produk bank yang berhasil diverifikasi pada pencarian ini.</small></div>';
+    }).join('') || '<div class="source"><b>Belum ada produk dengan bunga terverifikasi</b><small>Hasil tanpa angka bunga tidak ditampilkan agar card tetap bersih.</small></div>';
 
     let rawAI=ai.response || '';
     let parsed=tryParseJSON(rawAI);

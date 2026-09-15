@@ -250,6 +250,110 @@ async def ddg_search(query, category, max_results=2):
     return result
 
 
+async def bing_search(query, category, max_results=4):
+    """Fallback search when DuckDuckGo HTML returns zero/blocked."""
+    url = "https://www.bing.com/search?q=" + quote(query) + "&setlang=id"
+    try:
+        body = await get_text(url, 10)
+    except Exception:
+        return []
+
+    blocks = re.findall(r'(?is)<li[^>]+class="[^"]*b_algo[^"]*"[^>]*>(.*?)</li>', body)
+    out = []
+    for block in blocks:
+        m = re.search(r'(?is)<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', block)
+        if not m:
+            continue
+        href = html.unescape(m.group(1))
+        title = re.sub(r"<[^>]+>", "", html.unescape(m.group(2))).strip()
+        p = re.search(r'(?is)<p[^>]*>(.*?)</p>', block)
+        snippet = re.sub(r"<[^>]+>", "", html.unescape(p.group(1))).strip() if p else ""
+        out.append({"category":category,"title":title,"snippet":snippet,"url":href})
+        if len(out) >= max_results:
+            break
+    return out
+
+
+async def search_any(query, category, max_results=5):
+    """Query DDG and Bing in parallel, dedupe, return whichever succeeds."""
+    chunks = await asyncio.gather(
+        ddg_search(query, category, max_results),
+        bing_search(query, category, max_results),
+        return_exceptions=True,
+    )
+    out, seen = [], set()
+    for chunk in chunks:
+        if not isinstance(chunk, list):
+            continue
+        for item in chunk:
+            key = item.get("url") or item.get("title")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+            if len(out) >= max_results:
+                return out
+    return out
+
+
+FUND_SEED_PRODUCTS = [
+    {
+        "fund_category":"money_market",
+        "manager":"Syailendra Capital",
+        "product_name":"Syailendra Dana Kas (SDK)",
+        "url":"https://www.syailendracapital.com/public/index.php/en/product/reksa-dana-pasar-uang",
+    },
+    {
+        "fund_category":"fixed_income",
+        "manager":"Syailendra Capital",
+        "product_name":"Syailendra Fixed Income Fund (SFIF)",
+        "url":"https://syailendracapital.com/product/reksa-dana-pendapatan-tetap/syailendra-fixed-income-fund-sfif",
+    },
+    {
+        "fund_category":"mixed",
+        "manager":"Syailendra Capital",
+        "product_name":"Syailendra Balanced Opportunity Fund (SBOF) Kelas A",
+        "url":"https://www.syailendracapital.com/public/index.php/product/reksa-dana-campuran",
+    },
+    {
+        "fund_category":"equity",
+        "manager":"Syailendra Capital",
+        "product_name":"Syailendra Equity Opportunity Fund (SEOF) Kelas A",
+        "url":"https://www.syailendracapital.com/en/product/reksa-dana-saham/syailendra-equity-opportunity-fund-seof",
+    },
+    {
+        "fund_category":"money_market",
+        "manager":"Mandiri Manajemen Investasi",
+        "product_name":"Mandiri Investa Pasar Uang 2 (MIPU2)",
+        "url":"https://www.mandiri-investasi.co.id/id/produk/reksa-dana/pasar-uang/mandiri-investa-pasar-uang-2-mipu-2/",
+    },
+    {
+        "fund_category":"money_market",
+        "manager":"BNI Asset Management",
+        "product_name":"BNI-AM Dana Pasar Uang Kemilau Kelas A",
+        "url":"https://www.bni-am.co.id/produk.html/1/Reksa-Dana-Pasar-Uang",
+    },
+]
+
+
+async def _fetch_seed_fund(seed):
+    item = dict(seed)
+    try:
+        body = await get_text(seed["url"], 8)
+        text = _clean_html_text(body)
+        # Keep only a compact source excerpt; card UI will hide long text behind Detail.
+        item["snippet"] = re.sub(r"\s+", " ", text)[:1200]
+        item["return_facts"] = _extract_fund_return_facts(text, 5)
+        item["official_hint"] = True
+        item["category"] = "Reksadana • " + FUND_CATEGORY_MAP.get(seed["fund_category"], "Reksadana").title()
+    except Exception:
+        item["snippet"] = "Produk resmi dari Manajer Investasi; data performa belum berhasil dimuat."
+        item["return_facts"] = []
+        item["official_hint"] = True
+        item["category"] = "Reksadana • " + FUND_CATEGORY_MAP.get(seed["fund_category"], "Reksadana").title()
+    return item
+
+
 
 BANK_DOMAINS = {
     "Bank Jago": ["jago.com"],
@@ -537,6 +641,23 @@ async def multi_search(query, category, domains=None, max_results=4):
     return out
 
 
+def _rate_matches_selected_ranges(rate_percent, selected_ranges):
+    if rate_percent is None or not selected_ranges:
+        return True
+    try:
+        p = float(rate_percent)
+    except Exception:
+        return False
+    for r in selected_ranges:
+        m = re.match(r"\s*([0-9.]+)\s*-\s*([0-9.]+)\s*", str(r))
+        if not m:
+            continue
+        lo, hi = float(m.group(1)), float(m.group(2))
+        if lo <= p <= hi:
+            return True
+    return False
+
+
 async def _bank_search_one(name, selected_ranges):
     domains = BANK_DOMAINS.get(name, [])
     bank_items = []
@@ -566,13 +687,32 @@ async def _bank_search_one(name, selected_ranges):
             item["important_facts"] = _important_bank_facts(item.get("snippet") or "")
             _attach_rate_facts(item)
             bank_items.append(item)
-    bank_items.sort(key=lambda x:(
+    # Bersihkan rate yang tidak masuk range pilihan dan buang hasil tanpa angka bunga.
+    cleaned = []
+    seen_products = set()
+    for item in bank_items:
+        facts = [
+            f for f in (item.get("rate_facts") or [])
+            if _rate_matches_selected_ranges(f.get("rate_percent"), selected_ranges)
+        ]
+        if not facts:
+            continue
+        item["rate_facts"] = facts[:4]
+        key = (
+            (item.get("product_name") or item.get("title") or "").strip().lower(),
+            item.get("url") or "",
+        )
+        if key in seen_products:
+            continue
+        seen_products.add(key)
+        cleaned.append(item)
+
+    cleaned.sort(key=lambda x:(
         0 if x.get("source_type")=="official-known-product" else 1,
         0 if x.get("official_hint") else 1,
-        0 if x.get("rate_facts") else 1,
         0 if x.get("source_type")=="official-direct" else 1
     ))
-    return bank_items[:4]
+    return cleaned[:4]
 
 async def bank_search(names_text, rate_ranges_text=''):
     names=[x.strip() for x in names_text.split(',') if x.strip()][:10]
@@ -682,8 +822,8 @@ async def fund_search(categories_text=""):
     async def search_query(category_key, query, max_results=5):
         try:
             items = await asyncio.wait_for(
-                ddg_search(query, "Reksadana • " + FUND_CATEGORY_MAP[category_key].title(), max_results),
-                timeout=7,
+                search_any(query, "Reksadana • " + FUND_CATEGORY_MAP[category_key].title(), max_results),
+                timeout=9,
             )
         except Exception:
             return []
@@ -692,23 +832,39 @@ async def fund_search(categories_text=""):
     jobs = []
     for key in selected:
         label = FUND_CATEGORY_MAP[key]
-        # Tidak dibatasi MI tertentu: generic discovery + marketplace besar yang memuat banyak MI.
         jobs.extend([
-            (key, f'reksa dana {label} Indonesia NAB return "1 tahun" manajer investasi'),
-            (key, f'site:bareksa.com reksa dana {label} "1 tahun"'),
-            (key, f'site:bibit.id reksa dana {label} "1 tahun"'),
-            (key, f'reksa dana {label} fund fact sheet Indonesia manajer investasi'),
+            (key, f'reksa dana {label} Indonesia NAB return 1 tahun manajer investasi'),
+            (key, f'produk reksa dana {label} Indonesia fund fact sheet'),
+            (key, f'site:bareksa.com reksa dana {label}'),
+            (key, f'site:bibit.id reksa dana {label}'),
         ])
 
-    chunks = await asyncio.gather(
-        *(search_query(key, q) for key, q in jobs),
-        return_exceptions=True,
+    search_chunks, seed_chunks = await asyncio.gather(
+        asyncio.gather(*(search_query(key, q) for key, q in jobs), return_exceptions=True),
+        asyncio.gather(*(
+            _fetch_seed_fund(seed)
+            for seed in FUND_SEED_PRODUCTS
+            if seed["fund_category"] in selected
+        ), return_exceptions=True),
     )
 
     out = []
     seen = set()
     per_category_count = {key: 0 for key in selected}
-    for chunk in chunks:
+
+    # Seed official products first so UI never becomes completely empty when search engines block.
+    for item in seed_chunks:
+        if not isinstance(item, dict):
+            continue
+        key = item.get("url") or item.get("product_name")
+        if key in seen:
+            continue
+        seen.add(key)
+        cat = item.get("fund_category")
+        per_category_count[cat] = per_category_count.get(cat, 0) + 1
+        out.append(item)
+
+    for chunk in search_chunks:
         if not isinstance(chunk, list):
             continue
         for item in chunk:
@@ -722,8 +878,8 @@ async def fund_search(categories_text=""):
             per_category_count[cat] = per_category_count.get(cat, 0) + 1
             out.append(item)
 
-    # Results with identified MI and extracted return are more useful, but keep discovery diversity.
     out.sort(key=lambda x: (
+        0 if x.get("official_hint") else 1,
         0 if x.get("manager") else 1,
         0 if x.get("return_facts") else 1,
         selected.index(x.get("fund_category")) if x.get("fund_category") in selected else 99,
@@ -733,13 +889,13 @@ async def fund_search(categories_text=""):
 
     return {
         "fetched_at": nowiso(),
-        "search_mode": "all-investment-managers-internet-discovery",
+        "search_mode": "all-mi-ddg+bing+official-seeds",
         "coverage_mode": "ALL_MI_DISCOVERY_NOT_LIMITED_TO_FIXED_LIST",
         "selected_categories": selected,
         "managers_detected": managers,
         "manager_count_detected": len(managers),
         "items": out[:32],
-        "note": "Pencarian tidak dibatasi daftar MI tertentu. Nama alias hanya dipakai untuk pelabelan hasil yang ditemukan.",
+        "note": "Discovery tetap lintas semua MI. Produk seed resmi hanya fallback agar hasil tidak kosong saat search engine publik gagal.",
     }
 
 

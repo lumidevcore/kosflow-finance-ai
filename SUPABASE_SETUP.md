@@ -209,3 +209,19 @@ Perubahan utama:
 - prompt Analisis Ollama dipaksa Bahasa Indonesia;
 - Generate Catatan AI menyimpan teks biasa ke textarea meskipun model sempat membungkus output dalam JSON;
 - saham hanya pencarian informasi dan tidak mengurangi saldo.
+
+
+## Update v10.27 — Fix Campuran Kos, Reksadana, Bank Bersih, Catatan AI
+
+Tidak ada migration Supabase baru.
+
+Perubahan:
+- mode `Campuran` menghitung dana orang tua yang dipakai otomatis sebagai `Kos bulanan - kontribusi pribadi`, dibatasi dana orang tua yang tersedia;
+- contoh kos Rp700.000: pribadi Rp200.000 => orang tua Rp500.000; pribadi Rp330.000 => orang tua Rp370.000;
+- dana orang tua tersedia tetap dipisahkan dari dana orang tua yang benar-benar dipakai;
+- card bank tanpa angka bunga terverifikasi tidak ditampilkan;
+- detail bank tidak lagi menampilkan dump menu/HTML panjang;
+- bunga bank difilter sesuai range yang dipilih;
+- reksadana memakai DuckDuckGo + Bing fallback + seed halaman resmi agar tidak 0 hasil ketika search engine gagal;
+- discovery reksadana tetap tidak dibatasi daftar MI tertentu;
+- Generate Catatan AI sekarang membaca JSON bertingkat `output.catatan_analisis_keuangan` dan memasukkan teksnya langsung ke form.
