@@ -3,248 +3,240 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance AI</title>
+<title>KosFlow Finance v10.1</title>
 <style>
 :root{
-  --bg:#08111d;
-  --bg2:#0d1a2f;
-  --panel:#0f1b2d;
-  --panel2:#13233a;
-  --line:rgba(255,255,255,.08);
-  --text:#eef4ff;
-  --muted:#99aac6;
-  --green:#35d39b;
-  --red:#ff6f7d;
-  --blue:#58b6ff;
-  --cyan:#39d5ff;
-  --purple:#8d68ff;
-  --orange:#f8b84e;
-  --shadow:0 20px 60px rgba(0,0,0,.28);
+  --bg:#f4f8ff;
+  --bg2:#eef4ff;
+  --bg3:#ffffff;
+  --text:#18253d;
+  --muted:#62708a;
+  --line:rgba(17,24,39,.08);
+  --primary:#5568ff;
+  --primary2:#28c2ff;
+  --green:#1fb980;
+  --red:#ef5b73;
+  --orange:#f59e0b;
+  --purple:#8257ff;
+  --card-shadow:0 20px 55px rgba(61,90,128,.12);
+  --soft-shadow:0 10px 26px rgba(79,102,149,.09);
 }
-
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   color:var(--text);
   background:
-    radial-gradient(circle at top left, rgba(88,182,255,.12), transparent 26%),
-    radial-gradient(circle at top right, rgba(141,104,255,.10), transparent 22%),
-    linear-gradient(180deg, #07101b 0%, #091322 28%, #0a1425 100%);
+    radial-gradient(circle at top left, rgba(85,104,255,.12), transparent 24%),
+    radial-gradient(circle at right top, rgba(40,194,255,.12), transparent 22%),
+    linear-gradient(180deg,#f8fbff 0%,#f0f6ff 42%,#edf3ff 100%);
 }
-
-.wrap{max-width:1480px;margin:0 auto;padding:18px 18px 42px}
+.wrap{max-width:1520px;margin:0 auto;padding:20px}
 .topbar{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:10px 2px 18px;
+  display:flex;justify-content:space-between;align-items:center;gap:14px;
+  margin-bottom:18px;
 }
 .brand{display:flex;align-items:center;gap:14px}
 .logo{
-  width:58px;height:58px;border-radius:20px;
-  display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--purple),var(--cyan));
-  font-weight:900;font-size:24px;
-  box-shadow:0 12px 34px rgba(90,160,255,.26);
+  width:60px;height:60px;border-radius:22px;display:grid;place-items:center;
+  font-size:24px;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  box-shadow:0 18px 34px rgba(85,104,255,.22);
 }
-.brand h1{margin:0;font-size:22px;letter-spacing:.2px}
-.brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.brand h1{margin:0;font-size:26px}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:14px}
 .status-pill{
-  padding:11px 18px;border-radius:999px;
-  background:rgba(255,255,255,.05);border:1px solid var(--line);
-  color:#dff4ff;font-size:14px;white-space:nowrap;
+  border-radius:999px;padding:11px 16px;
+  background:rgba(255,255,255,.75);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:var(--soft-shadow);
+  color:#315176;font-size:14px;font-weight:700;
 }
-
 .card{
-  background:linear-gradient(180deg, rgba(16,27,44,.98), rgba(11,20,36,.98));
-  border:1px solid var(--line);
-  border-radius:26px;
-  box-shadow:var(--shadow);
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.85);
+  box-shadow:var(--card-shadow);
+  border-radius:28px;
 }
 .hidden{display:none!important}
 
-.market-billboard{
-  position:relative;
-  overflow:hidden;
-  border-radius:28px;
-  margin-bottom:18px;
-  padding:14px;
-  background:linear-gradient(180deg, rgba(10,19,33,.95), rgba(13,24,40,.98));
-  border:1px solid var(--line);
-  box-shadow:var(--shadow);
+.market-board{padding:16px 16px 12px;margin-bottom:18px}
+.market-top{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:4px 6px 12px;
 }
-.bill-head{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin-bottom:12px;padding:2px 4px 8px;
-}
-.bill-head .title{
-  font-weight:900;font-size:19px;letter-spacing:.2px;
-}
-.bill-head .sub{color:var(--muted);font-size:13px}
+.market-top h2{margin:0 0 5px;font-size:22px}
+.market-top p{margin:0;color:var(--muted);font-size:14px}
 .ticker-mask{overflow:hidden;position:relative}
 .ticker-track{
-  display:flex;gap:12px;width:max-content;
-  animation:scrollBoard 36s linear infinite;
-  padding-bottom:3px;
+  display:flex;gap:14px;width:max-content;animation:slideBillboard 42s linear infinite;
+  padding-bottom:10px;
 }
-.market-billboard:hover .ticker-track{animation-play-state:paused}
-@keyframes scrollBoard{
-  from{transform:translateX(0)}
-  to{transform:translateX(-50%)}
-}
+.market-board:hover .ticker-track{animation-play-state:paused}
+@keyframes slideBillboard{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .market-card{
-  width:310px;min-height:148px;position:relative;overflow:hidden;
-  padding:18px 18px 16px;
-  background:linear-gradient(135deg, rgba(27,36,57,.98), rgba(15,28,49,.98));
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:24px;
+  position:relative;overflow:hidden;min-height:162px;width:312px;
+  border-radius:24px;padding:18px;
+  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(244,248,255,.93));
+  border:1px solid rgba(35,61,102,.08);
+  box-shadow:0 16px 34px rgba(88,114,160,.10);
 }
-.market-card.live::after,
-.market-card.mini::after{
-  content:"";
-  position:absolute;inset:auto -25% -55% auto;width:160px;height:160px;
-  background:radial-gradient(circle, rgba(88,182,255,.14), transparent 60%);
-  pointer-events:none;
+.market-card::before{
+  content:"";position:absolute;right:-30px;top:-24px;width:130px;height:130px;border-radius:50%;
+  background:radial-gradient(circle, rgba(85,104,255,.12), transparent 60%);
 }
-.market-card .sym{
-  color:#cfe5ff;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase
+.market-card.live::after,.market-card.mini::after{
+  content:"";position:absolute;left:-24px;bottom:-32px;width:100px;height:100px;border-radius:50%;
+  background:radial-gradient(circle, rgba(40,194,255,.10), transparent 62%);
 }
-.market-card .price{font-size:28px;font-weight:900;margin:10px 0 4px}
+.market-card .sym{font-size:12px;font-weight:800;color:#7386a5;letter-spacing:.08em;text-transform:uppercase}
+.market-card .price{font-size:31px;line-height:1.05;font-weight:950;margin:12px 0 6px;color:#17243a}
 .market-card .chg{font-size:13px;font-weight:800}
-.market-card .meta{font-size:12px;color:var(--muted);margin-top:8px}
-.market-card svg{
-  position:absolute;right:8px;bottom:8px;width:45%;height:58px;opacity:.9;
-}
-.up{color:#92f0c7}
-.down{color:#ff98a2}
-.neutral{color:#d0dbeb}
+.market-card .meta{font-size:12px;color:#7a8da9;margin-top:9px;line-height:1.55}
+.market-card svg{position:absolute;right:10px;bottom:10px;width:46%;height:60px;opacity:.92}
+.up{color:var(--green)}
+.down{color:var(--red)}
+.neutral{color:#8090ab}
 
 .layout{
-  display:grid;
-  grid-template-columns:400px minmax(0,1fr);
-  gap:18px;
+  display:grid;grid-template-columns:420px minmax(0,1fr);gap:18px;
 }
-.side{
-  display:flex;flex-direction:column;gap:18px
-}
+.side{display:flex;flex-direction:column;gap:18px}
 .panel{padding:22px}
 .kicker{
-  color:#b8b7ff;font-size:12px;font-weight:900;letter-spacing:.11em;text-transform:uppercase
+  color:#7a6cf6;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase
 }
-.panel h2{margin:7px 0 8px;font-size:22px;line-height:1.3}
-.desc{font-size:14px;line-height:1.65;color:#b3c1d7;margin:0 0 18px}
-
-.connbox{
-  display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px
-}
+.panel h2{margin:8px 0 8px;font-size:24px;line-height:1.28}
+.desc{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .field{margin-bottom:14px}
-label{display:block;margin-bottom:7px;font-size:12.5px;font-weight:800;color:#d9e5f6}
-input,select,textarea,button{
-  font:inherit
+label{
+  display:block;margin-bottom:7px;color:#324866;font-size:12.5px;font-weight:800
 }
+input,select,textarea,button{font:inherit}
 input,select,textarea{
-  width:100%;padding:14px 15px;
-  border-radius:18px;border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.05);color:var(--text);
-  outline:none;
+  width:100%;padding:15px 16px;
+  border-radius:18px;border:1px solid rgba(58,85,129,.10);
+  background:rgba(255,255,255,.92);color:var(--text);outline:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+}
+input:focus,select:focus,textarea:focus{
+  border-color:rgba(85,104,255,.34);box-shadow:0 0 0 4px rgba(85,104,255,.09)
 }
 textarea{min-height:96px;resize:vertical}
-input:focus,select:focus,textarea:focus{
-  border-color:rgba(88,182,255,.55);
-  box-shadow:0 0 0 4px rgba(88,182,255,.09)
-}
-input::placeholder,textarea::placeholder{color:#9cafca}
-
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+input::placeholder,textarea::placeholder{color:#8d9cb4}
 .btn{
-  width:100%;padding:16px 18px;border:0;border-radius:18px;
-  color:white;cursor:pointer;font-weight:900;
-  background:linear-gradient(90deg, #7a49ff 0%, #4576ff 45%, #18a9d9 100%);
-  box-shadow:0 14px 36px rgba(70,124,255,.24);
+  width:100%;border:0;cursor:pointer;color:#fff;
+  padding:16px 18px;border-radius:18px;font-weight:900;
+  background:linear-gradient(90deg,var(--purple),var(--primary),var(--primary2));
+  box-shadow:0 18px 34px rgba(85,104,255,.18);
 }
 .btn.secondary{
-  background:rgba(255,255,255,.08);box-shadow:none;border:1px solid rgba(255,255,255,.08)
+  background:linear-gradient(180deg,#ffffff,#f4f8ff);
+  color:#253b59;border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)
 }
-.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn:disabled{opacity:.55;cursor:not-allowed}
 .note{
-  margin-top:14px;padding:14px 15px;border-radius:18px;
-  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
-  color:#bed0ea;font-size:13px;line-height:1.6
+  padding:14px 15px;border-radius:18px;border:1px solid rgba(58,85,129,.08);
+  background:linear-gradient(180deg,#ffffff,#f8fbff);
+  color:#64748b;font-size:13px;line-height:1.65
 }
 
-.maincol{display:flex;flex-direction:column;gap:18px}
-.hero{
-  padding:22px 24px;
-  display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;
+.main{display:flex;flex-direction:column;gap:18px}
+.hero{padding:24px;display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
+.eyebrow{
+  font-size:12px;font-weight:900;color:#4b87ff;letter-spacing:.1em;text-transform:uppercase
 }
-.hero-left{display:flex;flex-direction:column;justify-content:space-between}
-.hero .eyebrow{font-size:12px;font-weight:900;color:#8ccfff;letter-spacing:.08em;text-transform:uppercase}
-.hero .big{font-size:54px;font-weight:950;line-height:1;letter-spacing:-2px;margin:10px 0 10px}
-.hero .small{color:#c8d7ec;font-size:14px;line-height:1.6}
-.hero-right{
-  display:grid;grid-template-columns:1fr 1fr;gap:12px
+.big{
+  font-size:58px;font-weight:950;letter-spacing:-2px;line-height:1;margin:10px 0 12px
 }
-.stat{
-  padding:16px 16px 15px;border-radius:20px;
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)
+.sub{color:#61708a;font-size:14px;line-height:1.65}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{
+  border-radius:22px;padding:16px;background:linear-gradient(180deg,#ffffff,#f7faff);
+  border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)
 }
-.stat .k{font-size:12px;color:var(--muted);margin-bottom:8px}
-.stat .v{font-size:20px;font-weight:900}
+.metric .k{font-size:12px;color:#70809b;margin-bottom:8px}
+.metric .v{font-size:20px;font-weight:900}
+.placeholder{padding:54px 28px;text-align:center}
+.placeholder .ico{font-size:44px}
+.placeholder h3{margin:12px 0 7px;font-size:26px}
+.placeholder p{max-width:760px;margin:0 auto;color:var(--muted);line-height:1.7}
 
 .progress-card{padding:22px}
-.progress-top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px}
-.progress-top h3{margin:0;font-size:18px}
-.progressbar{height:12px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin-bottom:16px}
-.fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg, #8250ff 0%, #43adff 56%, #34d39b 100%);transition:.35s}
+.prog-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.prog-top h3{margin:0;font-size:20px}
+.bar{height:13px;border-radius:999px;background:rgba(89,112,155,.12);overflow:hidden;margin-bottom:16px}
+.fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--purple),var(--primary),var(--primary2),#47d7af);transition:.35s}
 .steps{display:grid;gap:12px}
 .step{
-  display:grid;grid-template-columns:50px 1fr auto;align-items:center;gap:14px;
-  padding:14px 16px;border-radius:20px;
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.06);
+  display:grid;grid-template-columns:52px 1fr auto;gap:14px;align-items:center;
+  padding:15px 16px;border-radius:22px;border:1px solid rgba(58,85,129,.08);
+  background:linear-gradient(180deg,#fff,#f8fbff);
 }
 .step .n{
-  width:38px;height:38px;border-radius:14px;display:grid;place-items:center;
-  background:rgba(255,255,255,.05);font-weight:900
+  width:40px;height:40px;border-radius:14px;display:grid;place-items:center;
+  background:#edf3ff;color:#314d7c;font-weight:900
 }
-.step b{font-size:17px}
-.step small{display:block;font-size:13px;color:var(--muted);margin-top:4px}
-.step .state{font-size:13px;color:var(--muted)}
-.step.on{border-color:rgba(88,182,255,.35);background:rgba(88,182,255,.08)}
-.step.done .state{color:#9aedc8}
-
-.placeholder{
-  padding:50px 24px;text-align:center
-}
-.placeholder .ico{font-size:42px}
-.placeholder h3{font-size:24px;margin:10px 0 8px}
-.placeholder p{margin:0 auto;max-width:680px;color:#b8c7db;line-height:1.7}
+.step b{font-size:16px}
+.step small{display:block;color:#7b8aa5;font-size:13px;margin-top:4px}
+.step .state{font-size:13px;color:#7b8aa5}
+.step.on{border-color:rgba(85,104,255,.28);background:linear-gradient(180deg,#fcfdff,#eff4ff)}
+.step.done .state{color:var(--green)}
 
 .section{padding:22px}
 .sec-head{
   display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px
 }
-.sec-head h3{margin:0;font-size:19px}
-.sec-head span{font-size:12.5px;color:var(--muted)}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.sec-head h3{margin:0;font-size:20px}
+.sec-head span{color:#7386a5;font-size:13px}
+
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.snap, .source{
-  padding:16px;border-radius:20px;background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.07)
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.snap,.source,.analysis-card,.raw-card{
+  border-radius:22px;padding:17px;background:linear-gradient(180deg,#fff,#f8fbff);
+  border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)
 }
-.snap b,.source b{display:block;font-size:15px;margin-bottom:7px}
-.snap small,.source small{display:block;color:#b6c5d9;line-height:1.55}
-.ai-text{
-  white-space:pre-wrap;line-height:1.72;color:#e7eefc;font-size:14.5px
+.snap b,.source b,.analysis-card h4{display:block;margin:0 0 8px}
+.snap small,.source small{display:block;color:#6f809a;line-height:1.55}
+.cards-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:14px
+}
+.analysis-card h4{
+  font-size:17px;color:#1f3356
+}
+.analysis-card .tag{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 12px;border-radius:999px;background:#eef4ff;color:#4563a0;
+  font-size:12px;font-weight:800;margin-bottom:12px
+}
+.analysis-card ul{
+  margin:0;padding-left:18px;color:#4e607f;line-height:1.75
+}
+.analysis-card p{
+  margin:0;color:#4e607f;line-height:1.75
+}
+.analysis-card.priority{background:linear-gradient(180deg,#fffef7,#fff8e7)}
+.analysis-card.warning{background:linear-gradient(180deg,#fffaf9,#fff1ef)}
+.analysis-card.recommend{background:linear-gradient(180deg,#f8fffb,#f0fff7)}
+.analysis-card.summary{background:linear-gradient(180deg,#ffffff,#f8fbff)}
+.analysis-card.conclusion{background:linear-gradient(180deg,#f8fbff,#eef5ff)}
+.raw-card pre{
+  white-space:pre-wrap;word-break:break-word;margin:0;color:#55657f;line-height:1.7;font-family:inherit
+}
+.footer-tip{
+  margin-top:12px;color:#7b8aa5;font-size:12.5px
 }
 
-@media (max-width: 1200px){
+@media (max-width: 1220px){
   .layout{grid-template-columns:1fr}
   .hero{grid-template-columns:1fr}
 }
 @media (max-width: 860px){
-  .row2,.connbox,.hero-right,.grid4,.grid3{grid-template-columns:1fr}
+  .grid2,.hero-grid,.grid3,.grid4,.cards-grid{grid-template-columns:1fr}
+  .big{font-size:42px}
   .market-card{width:280px}
-  .hero .big{font-size:42px}
 }
 </style>
 </head>
@@ -255,113 +247,100 @@ input::placeholder,textarea::placeholder{color:#9cafca}
       <div class="logo">K</div>
       <div>
         <h1>KosFlow Finance</h1>
-        <p>Dashboard keuangan kos • crypto live • saham IDX • analisis lokal Ollama</p>
+        <p>Planner kos, uang saku, market live, dan analisis Ollama dalam tampilan modern terang</p>
       </div>
     </div>
     <div class="status-pill" id="topStatus">● Menunggu koneksi</div>
   </div>
 
-  <section class="market-billboard">
-    <div class="bill-head">
+  <section class="card market-board">
+    <div class="market-top">
       <div>
-        <div class="title">Market Billboard</div>
-        <div class="sub">Ticker bergerak otomatis • hover untuk pause • live crypto + insight card</div>
+        <h2>Market Billboard</h2>
+        <p>Ticker bergerak seperti billboard, card lebih banyak, dan tetap live.</p>
       </div>
-      <div class="sub">Bukan cuma 3 card lagi</div>
+      <div class="status-pill">Hover untuk pause animasi</div>
     </div>
-
     <div class="ticker-mask">
-      <div class="ticker-track" id="tickerTrack">
-        <!-- Set 1 -->
+      <div class="ticker-track">
         <article class="market-card live" id="coin-BTC">
           <div class="sym">BTC • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga live dari stream market</div>
-          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.6" points=""></polyline></svg>
+          <div class="meta">Harga crypto live dari stream market</div>
+          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
-
         <article class="market-card live" id="coin-ETH">
           <div class="sym">ETH • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga live dari stream market</div>
-          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.6" points=""></polyline></svg>
+          <div class="meta">Harga crypto live dari stream market</div>
+          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
-
         <article class="market-card live" id="coin-SOL">
           <div class="sym">SOL • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga live dari stream market</div>
-          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.6" points=""></polyline></svg>
+          <div class="meta">Harga crypto live dari stream market</div>
+          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
-
         <article class="market-card mini">
-          <div class="sym">RINGKASAN</div>
-          <div class="price" id="miniCash">Rp 400.000</div>
-          <div class="chg up">Saldo aktif awal</div>
-          <div class="meta">Akan menyesuaikan setelah analisis selesai.</div>
+          <div class="sym">SALDO AKTIF</div>
+          <div class="price" id="miniCash">Rp400.000</div>
+          <div class="chg up">Uang yang tersedia sekarang</div>
+          <div class="meta">Angka ini akan ikut berubah setelah analisis keuangan selesai.</div>
         </article>
-
         <article class="market-card mini">
-          <div class="sym">TARGET</div>
-          <div class="price" id="miniSafe">Rp 50.000</div>
-          <div class="chg neutral">Dana aman minimum</div>
-          <div class="meta">Dipakai sebagai bantalan agar analisis tidak terlalu agresif.</div>
+          <div class="sym">DANA AMAN</div>
+          <div class="price" id="miniSafe">Rp50.000</div>
+          <div class="chg neutral">Cadangan minimum</div>
+          <div class="meta">Diprioritaskan agar sisa uang tidak habis untuk keputusan yang terlalu agresif.</div>
         </article>
-
         <article class="market-card mini">
           <div class="sym">FOKUS</div>
           <div class="price">Likuiditas</div>
           <div class="chg up">Kos & kebutuhan dulu</div>
-          <div class="meta">AI diarahkan untuk memprioritaskan uang yang benar-benar aman dipakai.</div>
+          <div class="meta">AI diarahkan memprioritaskan kestabilan uang sebelum investasi.</div>
         </article>
 
-        <!-- Duplicate set for seamless billboard -->
         <article class="market-card live" id="coin-BTC-2">
           <div class="sym">BTC • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga live dari stream market</div>
-          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.6" points=""></polyline></svg>
+          <div class="meta">Harga crypto live dari stream market</div>
+          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
-
         <article class="market-card live" id="coin-ETH-2">
           <div class="sym">ETH • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga live dari stream market</div>
-          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.6" points=""></polyline></svg>
+          <div class="meta">Harga crypto live dari stream market</div>
+          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
-
         <article class="market-card live" id="coin-SOL-2">
           <div class="sym">SOL • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga live dari stream market</div>
-          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.6" points=""></polyline></svg>
+          <div class="meta">Harga crypto live dari stream market</div>
+          <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
-
         <article class="market-card mini">
-          <div class="sym">RINGKASAN</div>
-          <div class="price" id="miniCash2">Rp 400.000</div>
-          <div class="chg up">Saldo aktif awal</div>
-          <div class="meta">Akan menyesuaikan setelah analisis selesai.</div>
+          <div class="sym">SALDO AKTIF</div>
+          <div class="price" id="miniCash2">Rp400.000</div>
+          <div class="chg up">Uang yang tersedia sekarang</div>
+          <div class="meta">Angka ini akan ikut berubah setelah analisis keuangan selesai.</div>
         </article>
-
         <article class="market-card mini">
-          <div class="sym">TARGET</div>
-          <div class="price" id="miniSafe2">Rp 50.000</div>
-          <div class="chg neutral">Dana aman minimum</div>
-          <div class="meta">Dipakai sebagai bantalan agar analisis tidak terlalu agresif.</div>
+          <div class="sym">DANA AMAN</div>
+          <div class="price" id="miniSafe2">Rp50.000</div>
+          <div class="chg neutral">Cadangan minimum</div>
+          <div class="meta">Diprioritaskan agar sisa uang tidak habis untuk keputusan yang terlalu agresif.</div>
         </article>
-
         <article class="market-card mini">
           <div class="sym">FOKUS</div>
           <div class="price">Likuiditas</div>
           <div class="chg up">Kos & kebutuhan dulu</div>
-          <div class="meta">AI diarahkan untuk memprioritaskan uang yang benar-benar aman dipakai.</div>
+          <div class="meta">AI diarahkan memprioritaskan kestabilan uang sebelum investasi.</div>
         </article>
       </div>
     </div>
@@ -372,14 +351,14 @@ input::placeholder,textarea::placeholder{color:#9cafca}
       <section class="card panel">
         <div class="kicker">Koneksi lokal</div>
         <h2>Kontrol Ollama lokal</h2>
-        <p class="desc">Web online tetap berjalan di Wasmer, sementara proses analisis final tetap memakai Ollama di laptop kamu.</p>
+        <p class="desc">Web tetap online di Wasmer, tapi analisis final tetap jalan di laptop kamu lewat Ollama lokal.</p>
 
-        <div class="connbox">
-          <div class="field" style="margin-bottom:0">
+        <div class="grid2">
+          <div class="field">
             <label>Bridge URL</label>
             <input id="bridge" value="http://127.0.0.1:8788" />
           </div>
-          <div class="field" style="margin-bottom:0">
+          <div class="field">
             <label>Pairing token</label>
             <input id="token" placeholder="token dari CMD" />
           </div>
@@ -389,12 +368,10 @@ input::placeholder,textarea::placeholder{color:#9cafca}
 
         <div class="field" style="margin-top:14px">
           <label>Model Ollama</label>
-          <select id="model">
-            <option>Hubungkan bridge dulu</option>
-          </select>
+          <select id="model"><option>Hubungkan bridge dulu</option></select>
         </div>
 
-        <div class="row2">
+        <div class="grid2">
           <div class="field">
             <label>Saldo tersedia</label>
             <input id="cash" type="number" value="400000" />
@@ -405,7 +382,7 @@ input::placeholder,textarea::placeholder{color:#9cafca}
           </div>
         </div>
 
-        <div class="row2">
+        <div class="grid2">
           <div class="field">
             <label>Kos / bulan</label>
             <input id="kos" type="number" value="700000" />
@@ -416,7 +393,16 @@ input::placeholder,textarea::placeholder{color:#9cafca}
           </div>
         </div>
 
-        <div class="row2">
+        <div class="field">
+          <label>Sumber pembayaran kos</label>
+          <select id="kosSource">
+            <option value="self" selected>Uang saku / saldo sendiri</option>
+            <option value="parent">Dibayar orang tua</option>
+            <option value="mixed">Campuran — bayar awal sendiri, sisa orang tua</option>
+          </select>
+        </div>
+
+        <div class="grid2">
           <div class="field">
             <label>Dana aman</label>
             <input id="buffer" type="number" value="50000" />
@@ -448,58 +434,48 @@ input::placeholder,textarea::placeholder{color:#9cafca}
 
         <div class="field">
           <label>Catatan</label>
-          <textarea id="notes" placeholder="Contoh: utamakan likuiditas, jangan pakai uang kos, prioritaskan kebutuhan dan dana aman."></textarea>
+          <textarea id="notes" placeholder="Contoh: utamakan kebutuhan pokok, jangan pakai uang kos, dan prioritaskan opsi yang likuid."></textarea>
         </div>
 
         <button class="btn" id="analyzeBtn" disabled>Hitung & Analisis AI</button>
 
         <div class="note">
-          Tampilan sekarang dibuat lebih ke arah dashboard keuangan daripada “terlalu AI”. Crypto tetap live, card bergerak seperti billboard, dan hasil analisis tetap baru muncul setelah semua proses selesai.
+          Sekarang hasil analisis dibuat dalam bentuk card, bukan blok teks panjang yang membosankan.
         </div>
       </section>
     </aside>
 
-    <main class="maincol">
+    <main class="main">
       <section class="card hero">
-        <div class="hero-left">
-          <div>
-            <div class="eyebrow">Ringkasan keuangan</div>
-            <div class="big" id="cashAfter">Rp0</div>
-            <div class="small" id="heroSub">Sisa uang setelah pembayaran kos awal akan tampil di sini.</div>
-          </div>
+        <div>
+          <div class="eyebrow">Ringkasan cepat</div>
+          <div class="big" id="cashAfter">Rp0</div>
+          <div class="sub" id="heroSub">Sisa uang setelah pembayaran kos awal akan tampil di sini setelah analisis selesai.</div>
         </div>
-        <div class="hero-right">
-          <div class="stat">
-            <div class="k">Bayar kos awal</div>
-            <div class="v" id="payKos">Rp0</div>
-          </div>
-          <div class="stat">
-            <div class="k">Sisa kos</div>
-            <div class="v" id="remainingKos">Rp0</div>
-          </div>
-          <div class="stat">
-            <div class="k">Pendapatan app / minggu</div>
-            <div class="v" id="apps">Rp0</div>
-          </div>
-          <div class="stat">
-            <div class="k">Surplus aman investasi</div>
-            <div class="v" id="safe">Rp0</div>
+        <div class="hero-grid">
+          <div class="metric"><div class="k">Bayar kos awal</div><div class="v" id="payKos">Rp0</div></div>
+          <div class="metric"><div class="k">Sisa kos</div><div class="v" id="remainingKos">Rp0</div></div>
+          <div class="metric"><div class="k">Pendapatan app / minggu</div><div class="v" id="apps">Rp0</div></div>
+          <div class="metric"><div class="k">Surplus aman investasi</div><div class="v" id="safe">Rp0</div></div>
+          <div class="metric" style="grid-column:1/-1">
+            <div class="k">Sumber pembayaran kos</div>
+            <div class="v" id="kosSourceView">Uang saku / saldo sendiri</div>
           </div>
         </div>
       </section>
 
       <section class="card placeholder" id="placeholder">
-        <div class="ico">💼</div>
-        <h3>Dashboard siap dipakai</h3>
-        <p>Hubungkan Ollama lokal terlebih dahulu. Setelah itu kamu bisa langsung menjalankan analisis keuangan berdasarkan kos, uang saku, pendapatan aplikasi, crypto, saham IDX, bank digital, dan reksadana.</p>
+        <div class="ico">✨</div>
+        <h3>Tampilan sudah dibuat lebih modern</h3>
+        <p>Hubungkan Ollama lokal terlebih dahulu. Setelah itu hasil analisis akan tampil sebagai kumpulan card ringkas yang lebih enak dibaca, bukan sebagai teks panjang mentah.</p>
       </section>
 
       <section class="card progress-card hidden" id="progress">
-        <div class="progress-top">
-          <h3>Analisis sedang diproses</h3>
+        <div class="prog-top">
+          <h3>AI sedang bekerja</h3>
           <div id="pct">0%</div>
         </div>
-        <div class="progressbar"><div class="fill" id="fill"></div></div>
+        <div class="bar"><div class="fill" id="fill"></div></div>
         <div class="steps" id="steps"></div>
       </section>
 
@@ -524,7 +500,8 @@ input::placeholder,textarea::placeholder{color:#9cafca}
           <h3>Analisis Ollama</h3>
           <span id="modelUsed">—</span>
         </div>
-        <div class="ai-text" id="aiText"></div>
+        <div class="cards-grid" id="analysisCards"></div>
+        <div class="footer-tip">Jika model gagal mengembalikan JSON rapi, sistem akan menampilkan ringkasan fallback otomatis.</div>
       </section>
     </main>
   </div>
@@ -539,6 +516,122 @@ let last = {};
 let ws = null;
 let paired = false;
 
+function stripCodeFence(s){
+  return (s||'').replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+}
+function tryParseJSON(raw){
+  if(!raw) return null;
+  const cleaned = stripCodeFence(raw);
+  try{return JSON.parse(cleaned)}catch(e){}
+  const first = cleaned.indexOf('{');
+  const last = cleaned.lastIndexOf('}');
+  if(first>=0 && last>first){
+    try{return JSON.parse(cleaned.slice(first,last+1))}catch(e){}
+  }
+  return null;
+}
+function bulletize(arr){
+  if(!Array.isArray(arr) || !arr.length) return '<p>Tidak ada data.</p>';
+  return '<ul>' + arr.map(x=>`<li>${escapeHtml(typeof x==='string'?x:(x.title||x.label||JSON.stringify(x)))}</li>`).join('') + '</ul>';
+}
+function mapObjectBullets(arr){
+  if(!Array.isArray(arr) || !arr.length) return '<p>Tidak ada data.</p>';
+  return '<ul>' + arr.map(x=>{
+    if(typeof x === 'string') return `<li>${escapeHtml(x)}</li>`;
+    const t = x.title || x.name || 'Item';
+    const d = x.detail || x.desc || x.reason || x.note || '';
+    return `<li><b>${escapeHtml(t)}</b>${d ? ' — ' + escapeHtml(d) : ''}</li>`;
+  }).join('') + '</ul>';
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function renderAnalysisCardsFromJSON(data, raw){
+  const wrap = document.getElementById('analysisCards');
+  const status = data.status || data.overall_status || 'Belum ada status';
+  const summary = data.summary || [];
+  const priorities = data.priorities || data.priority || [];
+  const warnings = data.warnings || [];
+  const recommendations = data.recommendations || data.recommendation || [];
+  const conclusion = data.conclusion || data.final_conclusion || data.kesimpulan || 'Belum ada kesimpulan.';
+  wrap.innerHTML = `
+    <article class="analysis-card summary">
+      <div class="tag">📊 Status</div>
+      <h4>${escapeHtml(status)}</h4>
+      ${bulletize(summary)}
+    </article>
+    <article class="analysis-card priority">
+      <div class="tag">🎯 Prioritas Utama</div>
+      <h4>Yang perlu didahulukan</h4>
+      ${bulletize(priorities)}
+    </article>
+    <article class="analysis-card warning">
+      <div class="tag">⚠️ Peringatan</div>
+      <h4>Hal yang perlu diwaspadai</h4>
+      ${bulletize(warnings)}
+    </article>
+    <article class="analysis-card recommend">
+      <div class="tag">💡 Rekomendasi</div>
+      <h4>Saran tindakan</h4>
+      ${mapObjectBullets(recommendations)}
+    </article>
+    <article class="analysis-card conclusion" style="grid-column:1/-1">
+      <div class="tag">✅ Kesimpulan</div>
+      <h4>Kesimpulan akhir</h4>
+      <p>${escapeHtml(conclusion)}</p>
+    </article>
+    <article class="raw-card" style="grid-column:1/-1">
+      <div class="tag" style="display:inline-flex;padding:8px 12px;border-radius:999px;background:#eef4ff;color:#4563a0;font-size:12px;font-weight:800;margin-bottom:12px">🧾 Output mentah model</div>
+      <pre>${escapeHtml(raw || '')}</pre>
+    </article>
+  `;
+}
+function renderFallbackCards(raw, budget){
+  const status = (budget.safe_investment_amount||0) > 0 ? 'Mulai ada ruang investasi terbatas' : 'Fokus stabilisasi keuangan';
+  const wrap = document.getElementById('analysisCards');
+  wrap.innerHTML = `
+    <article class="analysis-card summary">
+      <div class="tag">📊 Status</div>
+      <h4>${escapeHtml(status)}</h4>
+      <ul>
+        <li>Bayar kos awal: ${idr(budget.initial_kos_payment)}</li>
+        <li>Sisa kos: ${idr(budget.remaining_kos)}</li>
+        <li>Cash setelah bayar awal: ${idr(budget.cash_after_initial_kos)}</li>
+        <li>Sumber pembayaran kos: ${escapeHtml(budget.kos_source_label || '-')}</li>
+      </ul>
+    </article>
+    <article class="analysis-card priority">
+      <div class="tag">🎯 Prioritas</div>
+      <h4>Yang perlu didahulukan</h4>
+      <ul>
+        <li>Dahulukan kos, makan, minum, bensin, dan dana aman.</li>
+        <li>Pastikan buffer minimal tidak terganggu.</li>
+        <li>Fokus likuiditas sebelum investasi.</li>
+      </ul>
+    </article>
+    <article class="analysis-card warning">
+      <div class="tag">⚠️ Peringatan</div>
+      <h4>Catatan penting</h4>
+      <ul>
+        <li>Data crypto yang dipakai adalah snapshot, bukan harga live untuk trading.</li>
+        <li>Beberapa data saham/bank/reksadana bisa berasal dari fallback publik.</li>
+      </ul>
+    </article>
+    <article class="analysis-card recommend">
+      <div class="tag">💡 Rekomendasi</div>
+      <h4>Saran sementara</h4>
+      <ul>
+        <li>Jika surplus aman masih nol, tunda investasi dulu.</li>
+        <li>Setelah cash flow stabil, baru pertimbangkan instrumen yang paling likuid.</li>
+      </ul>
+    </article>
+    <article class="raw-card" style="grid-column:1/-1">
+      <div class="tag" style="display:inline-flex;padding:8px 12px;border-radius:999px;background:#eef4ff;color:#4563a0;font-size:12px;font-weight:800;margin-bottom:12px">🧾 Output mentah model</div>
+      <pre>${escapeHtml(raw || '')}</pre>
+    </article>
+  `;
+}
+
 async function getFx(){
   try{
     const r = await fetch('https://open.er-api.com/v6/latest/USD');
@@ -546,45 +639,39 @@ async function getFx(){
     if(d.rates?.IDR) usdIdr = d.rates.IDR;
   }catch(e){}
 }
-
-function updateSparkInCard(card, value){
+function updateSpark(card, value){
   const line = card.querySelector('[data-line]');
   if(!line) return;
   const sym = card.dataset.sym;
   const arr = histories[sym];
   arr.push(value);
-  if(arr.length > 36) arr.shift();
+  if(arr.length > 38) arr.shift();
   if(arr.length < 2) return;
-  const min = Math.min(...arr);
-  const max = Math.max(...arr);
-  const span = (max-min)||1;
-  const pts = arr.map((p,i)=> `${i*(180/(arr.length-1))},${54-((p-min)/span)*44}`).join(' ');
+  const min = Math.min(...arr), max = Math.max(...arr), span = (max-min)||1;
+  const pts = arr.map((p,i)=>`${i*(180/(arr.length-1))},${54-((p-min)/span)*44}`).join(' ');
   line.setAttribute('points', pts);
 }
-
 function renderCoin(sym, price, change){
   document.querySelectorAll(`[id^="coin-${sym}"]`).forEach(card=>{
     card.dataset.sym = sym;
     const prev = last[sym];
-    last[sym] = price;
     const priceEl = card.querySelector('[data-price]');
     const chgEl = card.querySelector('[data-change]');
     if(priceEl) priceEl.textContent = idr(price*usdIdr);
     if(chgEl){
       chgEl.textContent = `${change>=0?'+':''}${change.toFixed(2)}% 24j`;
-      chgEl.className = 'chg ' + (change>=0 ? 'up' : 'down');
+      chgEl.className = 'chg ' + (change>=0 ? 'up':'down');
     }
-    updateSparkInCard(card, price);
+    updateSpark(card, price);
     if(prev != null){
-      card.animate([
-        { transform:'translateY(0px)' },
-        { transform: price >= prev ? 'translateY(-4px)' : 'translateY(4px)' },
-        { transform:'translateY(0px)' }
-      ], {duration: 460, easing:'ease-out'});
+      card.animate(
+        [{transform:'translateY(0)'},{transform:price>=prev?'translateY(-5px)':'translateY(5px)'},{transform:'translateY(0)'}],
+        {duration:430,easing:'ease-out'}
+      );
     }
   });
+  last[sym] = price;
 }
-
 function startCrypto(){
   getFx();
   try{
@@ -607,14 +694,14 @@ async function pair(){
   btn.disabled = true;
   btn.textContent = 'Menghubungkan...';
   try{
-    const h = await fetch(url + '/health',{cache:'no-store'});
+    const h = await fetch(url+'/health',{cache:'no-store'});
     if(!h.ok) throw new Error('Bridge tidak merespons');
-    const r = await fetch(url + '/models',{headers:{'X-KosFlow-Token':token}});
+    const r = await fetch(url+'/models',{headers:{'X-KosFlow-Token':token}});
     const d = await r.json();
     if(!r.ok) throw new Error(d.error || 'Token salah');
     const sel = document.getElementById('model');
     sel.innerHTML = '';
-    (d.models || []).forEach(m=>{
+    (d.models||[]).forEach(m=>{
       const o = document.createElement('option');
       o.value = m;
       o.textContent = m;
@@ -645,7 +732,6 @@ const stepDefs = [
   ['ollama','Ollama menganalisis','Mengirim data ke Ollama lokal di laptop'],
   ['done','Menyiapkan hasil','Menampilkan hasil akhir']
 ];
-
 function renderSteps(){
   document.getElementById('steps').innerHTML = stepDefs.map((s,i)=>`
     <div class="step" id="s-${s[0]}">
@@ -655,26 +741,22 @@ function renderSteps(){
     </div>
   `).join('');
 }
-
-function step(key, p, msg){
+function step(key,p,msg){
   stepDefs.forEach(([k])=>{
     const el = document.getElementById('s-'+k);
     if(!el) return;
-    if(k === key){
-      el.classList.add('on');
-      el.classList.remove('done');
-      el.querySelector('.state').textContent = 'Proses';
+    if(k===key){
+      el.classList.add('on'); el.classList.remove('done');
+      el.querySelector('.state').textContent='Proses';
       el.querySelector('small').textContent = msg || 'Memproses';
     }else if(el.classList.contains('on')){
-      el.classList.remove('on');
-      el.classList.add('done');
-      el.querySelector('.state').textContent = 'Selesai';
+      el.classList.remove('on'); el.classList.add('done');
+      el.querySelector('.state').textContent='Selesai';
     }
   });
-  document.getElementById('fill').style.width = p + '%';
-  document.getElementById('pct').textContent = p + '%';
+  document.getElementById('fill').style.width = p+'%';
+  document.getElementById('pct').textContent = p+'%';
 }
-
 function calcBudget(){
   const cash = +document.getElementById('cash').value || 0;
   const allow = +document.getElementById('allowance').value || 0;
@@ -682,14 +764,39 @@ function calcBudget(){
   const weeks = +document.getElementById('weeks').value || 1;
   const needs = +document.getElementById('needs').value || 0;
   const buffer = +document.getElementById('buffer').value || 0;
+  const kosSource = document.getElementById('kosSource').value;
 
-  const raw = kos / 30 * (weeks * 7);
+  const raw = kos / 30 * (weeks*7);
   const pay = Math.ceil(raw / 10000) * 10000;
   const remaining = Math.max(0, kos - pay);
-  const after = cash - pay;
+
+  let after = cash;
+  let selfKosBurden = 0;
+  let parentKosBurden = 0;
+  let sourceLabel = 'Uang saku / saldo sendiri';
+
+  if(kosSource === 'self'){
+    after = cash - pay;
+    selfKosBurden = remaining;
+    sourceLabel = 'Uang saku / saldo sendiri';
+  }else if(kosSource === 'parent'){
+    after = cash;
+    parentKosBurden = kos;
+    sourceLabel = 'Dibayar orang tua';
+  }else{
+    after = cash - pay;
+    parentKosBurden = remaining;
+    sourceLabel = 'Campuran — awal sendiri, sisa orang tua';
+  }
+
   const amin = (517 + 1400 + 5000) * 7;
   const amax = (917 + 1400 + 10000) * 7;
-  const safe = Math.max(0, after + allow + amin - needs - buffer - remaining);
+
+  // Hanya beban kos yang benar-benar harus dibayar sendiri yang mengurangi surplus aman.
+  const safe = Math.max(
+    0,
+    after + allow + amin - needs - buffer - selfKosBurden
+  );
 
   return {
     initial_kos_payment: pay,
@@ -701,7 +808,11 @@ function calcBudget(){
     buffer,
     weekly_needs: needs,
     allowance: allow,
-    initial_days: weeks*7
+    initial_days: weeks*7,
+    kos_source: kosSource,
+    kos_source_label: sourceLabel,
+    self_kos_burden: selfKosBurden,
+    parent_kos_burden: parentKosBurden
   };
 }
 
@@ -735,22 +846,57 @@ async function analyze(){
     step('match', 78, 'Menyusun data untuk Ollama');
 
     const payload = {
-      budget, crypto_snapshot: crypto, stocks, banks, funds,
+      budget,
+      crypto_snapshot: crypto,
+      stocks,
+      banks,
+      funds,
       risk: document.getElementById('risk').value,
       notes: document.getElementById('notes').value
     };
 
-    const prompt = `Kamu adalah analis keuangan pribadi Indonesia. Analisis JSON berikut. Prioritaskan kos, kebutuhan, transportasi, dana aman. Jangan pakai sisa kos untuk investasi. Bedakan crypto snapshot dan harga live. Untuk bank dan reksadana, jika data belum cukup terverifikasi, katakan belum cukup. Beri rekomendasi ringkas, jelas, realistis, dan berbasis data.\n\n${JSON.stringify(payload)}`;
+    const prompt = `
+Kamu adalah analis keuangan pribadi Indonesia.
+Analisis data JSON berikut dan KEMBALIKAN HASIL DALAM FORMAT JSON VALID SAJA, tanpa markdown, tanpa penjelasan tambahan di luar JSON.
+
+Format wajib:
+{
+  "status": "string pendek",
+  "summary": ["poin 1", "poin 2", "poin 3"],
+  "priorities": ["prioritas 1", "prioritas 2", "prioritas 3"],
+  "warnings": ["warning 1", "warning 2", "warning 3"],
+  "recommendations": [
+    {"title":"judul rekomendasi 1","detail":"isi singkat"},
+    {"title":"judul rekomendasi 2","detail":"isi singkat"},
+    {"title":"judul rekomendasi 3","detail":"isi singkat"}
+  ],
+  "conclusion": "kesimpulan akhir singkat"
+}
+
+Aturan:
+- Gunakan Bahasa Indonesia.
+- Prioritaskan kos, kebutuhan, makan, minum, bensin, dan dana aman.
+- Perhatikan field kos_source_label. Jika kos dibayar orang tua, jangan kurangi kemampuan uang pribadi seolah kos dibayar dari saldo sendiri.
+- Jika mode campuran, pembayaran awal berasal dari saldo sendiri sedangkan sisa kos ditanggung orang tua.
+- Jangan sarankan memakai uang yang memang dialokasikan untuk kos sebagai investasi.
+- Bedakan crypto snapshot dengan harga live.
+- Jika data bank/reksadana/saham kurang kuat atau fallback, sebutkan secara singkat di warnings.
+- Buat jawaban ringkas, jelas, realistis, dan tidak bertele-tele.
+- Jangan menulis markdown, jangan menulis tabel, jangan menulis teks di luar JSON.
+
+Data:
+${JSON.stringify(payload)}
+`;
 
     step('ollama', 88, 'Mengirim data ke Ollama lokal');
     const bridge = document.getElementById('bridge').value.replace(/\/$/,'');
     const token = document.getElementById('token').value.trim();
     const model = document.getElementById('model').value;
 
-    const rr = await fetch(bridge + '/generate',{
+    const rr = await fetch(bridge+'/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json','X-KosFlow-Token':token},
-      body: JSON.stringify({model, prompt, temperature:.15})
+      body: JSON.stringify({model, prompt, temperature:.10})
     });
     const ai = await rr.json();
     if(!rr.ok) throw new Error(ai.error || 'Ollama gagal');
@@ -763,6 +909,7 @@ async function analyze(){
     document.getElementById('remainingKos').textContent = idr(budget.remaining_kos);
     document.getElementById('apps').textContent = `${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
     document.getElementById('safe').textContent = idr(budget.safe_investment_amount);
+    document.getElementById('kosSourceView').textContent = budget.kos_source_label;
     document.getElementById('miniCash').textContent = idr(budget.cash_after_initial_kos);
     document.getElementById('miniCash2').textContent = idr(budget.cash_after_initial_kos);
     document.getElementById('miniSafe').textContent = idr(budget.buffer);
@@ -787,9 +934,11 @@ async function analyze(){
       </div>
     `).join('');
 
-    document.getElementById('modelUsed').textContent = model;
-    document.getElementById('aiText').textContent = ai.response || '';
+    const parsed = tryParseJSON(ai.response || '');
+    if(parsed) renderAnalysisCardsFromJSON(parsed, ai.response || '');
+    else renderFallbackCards(ai.response || '', budget);
 
+    document.getElementById('modelUsed').textContent = model;
     document.getElementById('progress').classList.add('hidden');
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('researchWrap').classList.remove('hidden');
@@ -813,6 +962,7 @@ document.getElementById('buffer').addEventListener('input', e=>{
   document.getElementById('miniSafe').textContent = idr(+e.target.value||0);
   document.getElementById('miniSafe2').textContent = idr(+e.target.value||0);
 });
+
 startCrypto();
 </script>
 </body>
