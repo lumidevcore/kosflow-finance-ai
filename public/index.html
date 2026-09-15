@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.16</title>
+<title>KosFlow Finance v10.17</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -578,9 +578,9 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
         <div class="grid2">
           <div class="field">
-            <label>Dana aman otomatis</label>
+            <label>Dana aman periode berikutnya</label>
             <input id="buffer" type="number" value="260000" readonly />
-            <div class="range-help">Otomatis = uang saku mingguan − kebutuhan mingguan. Tidak digabung dengan dana orang tua untuk kos.</div>
+            <div class="range-help">Otomatis = uang saku mingguan − kebutuhan mingguan. Ini proyeksi dana aman untuk periode berikutnya, jadi tidak mengurangi saldo pribadi saat ini.</div>
           </div>
           <div class="field">
             <label>Kebutuhan / minggu</label>
@@ -681,7 +681,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
               <option value="1">Tahunan</option>
             </select>
           </div>
-          <div class="range-help">Dana simulasi otomatis memakai Surplus Aman Investasi. AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
+          <div class="range-help">Dana simulasi otomatis memakai Dana Aman Periode Berikutnya (uang saku − kebutuhan). AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
         </div>
 
 
@@ -748,6 +748,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <div class="metric"><div class="k">Bayar selanjutnya</div><div class="v" id="nextKosPayment">—</div></div>
           <div class="metric"><div class="k">Pendapatan app / minggu</div><div class="v" id="apps">Rp0</div></div>
           <div class="metric"><div class="k">Surplus aman investasi</div><div class="v" id="safe">Rp0</div></div>
+          <div class="metric"><div class="k">Dana aman periode berikutnya</div><div class="v" id="nextPeriodSafeHero">Rp0</div></div>
           <div class="metric"><div class="k">Saldo pribadi tersisa</div><div class="v" id="personalAvailableHero">Rp0</div></div>
           <div class="metric"><div class="k">Dana orang tua untuk kos</div><div class="v" id="parentKosHero">Rp0</div></div>
           <div class="metric" style="grid-column:1/-1">
@@ -1613,15 +1614,19 @@ function calcBudget(){
   // Jika kontribusi orang tua ditujukan untuk sisa kos, tetap tampil terpisah.
   const parentKosReserved = parentContribution;
 
-  // Dana investasi sekarang hanya dari saldo pribadi yang benar-benar ada,
-  // setelah kebutuhan minggu berjalan dan dana aman otomatis.
-  const safe = Math.max(0, personalCashAfterKos - needs - autoSafe);
-
-  const bankSimEl = document.getElementById('bankSimulationAmount');
-  if(bankSimEl) bankSimEl.value = Math.round(safe);
+  // Dana aman otomatis adalah PROYEKSI dari uang saku periode berikutnya,
+  // jadi jangan dikurangkan lagi dari saldo pribadi saat ini.
+  const safe = Math.max(0, personalCashAfterKos - needs);
 
   const projectedWeeklySurplusMin = Math.max(0, allow + incomeMin - needs);
   const projectedWeeklySurplusMax = Math.max(0, allow + incomeMax - needs);
+
+  // Dana simulasi bank otomatis memakai proyeksi konservatif periode berikutnya:
+  // uang saku - kebutuhan. Pendapatan app tidak dimasukkan agar tidak terlalu optimistis.
+  const bankSimulationAutoAmount = Math.max(0, allow - needs);
+
+  const bankSimEl = document.getElementById('bankSimulationAmount');
+  if(bankSimEl) bankSimEl.value = Math.round(bankSimulationAutoAmount);
 
   const cycleStartDate = parseLocalDate(kosCycleStart);
   const cycleEndDate = parseLocalDate(kosCycleEnd);
@@ -1661,6 +1666,8 @@ function calcBudget(){
     app_income_weekly_max: incomeMax,
     projected_weekly_surplus_min: projectedWeeklySurplusMin,
     projected_weekly_surplus_max: projectedWeeklySurplusMax,
+    projected_next_period_safe_fund: bankSimulationAutoAmount,
+    projected_personal_balance_next_period: personalCashAfterKos + allow - needs,
     safe_investment_amount: safe,
 
     initial_days: weeks*7,
@@ -1693,6 +1700,7 @@ function renderSavedAnalysis(saved){
     budget.next_kos_payment_date ? formatDateID(parseLocalDate(budget.next_kos_payment_date)) : '—';
   document.getElementById('apps').textContent=`${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
   document.getElementById('safe').textContent=idr(budget.safe_investment_amount);
+  document.getElementById('nextPeriodSafeHero').textContent=idr(budget.projected_next_period_safe_fund||0);
   document.getElementById('personalAvailableHero').textContent=idr(budget.personal_available_balance ?? budget.cash_after_initial_kos);
   document.getElementById('parentKosHero').textContent=idr(budget.kos_parent_contribution ?? 0);
   document.getElementById('kosSourceView').textContent=`${budget.kos_source_label||'-'} • ${budget.kos_funding_scope_label||''}`;
@@ -1739,7 +1747,8 @@ function buildNotesContext(){
     pendapatan_tambahan_min_per_minggu:+document.getElementById('incomeWeeklyMin')?.value||0,
     pendapatan_tambahan_max_per_minggu:+document.getElementById('incomeWeeklyMax')?.value||0,
     kebutuhan_per_minggu:+document.getElementById('needs')?.value||0,
-    dana_aman_otomatis:budget.auto_safe_fund||0,
+    dana_aman_periode_berikutnya:budget.projected_next_period_safe_fund||0,
+    saldo_pribadi_proyeksi_periode_berikutnya:budget.projected_personal_balance_next_period||0,
     kos_per_bulan:+document.getElementById('kos')?.value||0,
     bayar_awal_hari:budget.initial_days||0,
     sumber_pembayaran_kos:budget.kos_source_label||'',
@@ -2034,8 +2043,9 @@ ${JSON.stringify(payload)}
       budget.next_kos_payment_date ? formatDateID(parseLocalDate(budget.next_kos_payment_date)) : '—';
     document.getElementById('apps').textContent = `${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
     document.getElementById('safe').textContent = idr(budget.safe_investment_amount);
+    document.getElementById('nextPeriodSafeHero').textContent = idr(budget.projected_next_period_safe_fund);
     const autoBankSim=document.getElementById('bankSimulationAmount');
-    if(autoBankSim) autoBankSim.value=Math.round(budget.safe_investment_amount||0);
+    if(autoBankSim) autoBankSim.value=Math.round(budget.projected_next_period_safe_fund||0);
     document.getElementById('personalAvailableHero').textContent = idr(budget.personal_available_balance);
     document.getElementById('parentKosHero').textContent = idr(budget.kos_parent_contribution);
     updateAutoMoneyPreview();

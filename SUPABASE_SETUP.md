@@ -177,3 +177,15 @@ Fitur:
 - AI membaca saldo pribadi, uang saku, pendapatan tambahan, kebutuhan, dana aman otomatis, pembayaran kos, dana orang tua, profil risiko, pilihan saham, bank, dan simulasi.
 - Hasil Catatan bisa diedit manual setelah dibuat.
 - Catatan tetap disimpan menggunakan field `notes` yang sudah ada.
+
+
+## Update v10.17 — Perbaikan Dana Simulasi Otomatis
+
+Tidak ada migration database baru.
+
+Perubahan logika:
+- Dana aman adalah proyeksi periode berikutnya: `uang saku - kebutuhan mingguan`.
+- Dana aman proyeksi tidak lagi dikurangkan dari saldo pribadi saat ini.
+- Dana simulasi bank otomatis memakai nilai konservatif `uang saku - kebutuhan`.
+- Pendapatan aplikasi tidak otomatis dimasukkan ke dana simulasi agar proyeksi tidak terlalu optimistis.
+- Saldo pribadi, dana orang tua, dan dana periode berikutnya tetap dipisahkan.
