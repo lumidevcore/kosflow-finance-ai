@@ -1,0 +1,7 @@
+# Optional: Wasmer can also auto-detect this Python project.
+# If you want explicit app configuration, copy to app.yaml and fill owner/name.
+kind: wasmer.io/App.v0
+owner: YOUR_WASMER_USERNAME
+name: kosflow-ai
+package: .
+debug: true

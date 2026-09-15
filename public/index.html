@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KosFlow AI v9</title>
+<style>
+:root{--bg:#07111f;--panel:rgba(15,23,42,.86);--panel2:rgba(255,255,255,.055);--line:rgba(255,255,255,.10);--text:#f8fafc;--muted:#94a3b8;--purple:#8b5cf6;--cyan:#22d3ee;--green:#34d399;--red:#fb7185;--amber:#fbbf24}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 8% 0%,rgba(139,92,246,.20),transparent 24%),radial-gradient(circle at 96% 8%,rgba(34,211,238,.12),transparent 22%),linear-gradient(145deg,#050b15,#091526 48%,#07111f);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;min-height:100vh}
+.wrap{width:min(1260px,100%);margin:auto;padding:22px 16px 48px}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-weight:950;background:linear-gradient(135deg,var(--purple),var(--cyan))}.brand h1{margin:0;font-size:21px}.brand p{margin:3px 0 0;color:var(--muted);font-size:13px}.status{font-size:12px;padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.crypto-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.coin{position:relative;overflow:hidden;padding:15px;border-radius:20px;background:var(--panel);border:1px solid var(--line);min-height:120px}.coin .sym{font-size:12px;color:var(--muted)}.coin .price{font-size:24px;font-weight:950;margin:5px 0}.coin .chg{font-size:12px;font-weight:750}.coin svg{position:absolute;right:0;bottom:0;width:58%;height:54px;opacity:.65}.up{color:#86efac}.down{color:#fda4af}.flash-up{animation:fu .45s}.flash-down{animation:fd .45s}@keyframes fu{50%{background:rgba(52,211,153,.14)}}@keyframes fd{50%{background:rgba(251,113,133,.13)}}
+.layout{display:grid;grid-template-columns:405px 1fr;gap:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:23px;box-shadow:0 22px 60px rgba(0,0,0,.30);backdrop-filter:blur(18px)}.form{padding:20px;align-self:start;position:sticky;top:14px}.eyebrow{font-size:11px;color:#c4b5fd;font-weight:850;text-transform:uppercase;letter-spacing:.09em}.form h2{font-size:26px;margin:7px 0 8px}.desc{font-size:13.5px;line-height:1.55;color:#aab7c8;margin-bottom:18px}.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin-bottom:12px}label{display:block;font-size:12.5px;font-weight:750;color:#dbeafe;margin-bottom:6px}input,select,textarea{width:100%;padding:12px 13px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.055);color:white;outline:none;font-size:14px}select option{color:#111827}textarea{min-height:70px;resize:vertical}.btn{width:100%;padding:14px;border:0;border-radius:14px;color:white;font-weight:850;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#0891b2)}.btn.secondary{margin-bottom:10px;background:rgba(255,255,255,.07);border:1px solid var(--line)}.btn:disabled{opacity:.55;cursor:not-allowed}.note{margin-top:11px;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);font-size:12px;line-height:1.5;color:#cbd5e1}
+.content{display:grid;gap:16px}.placeholder{padding:46px 22px;text-align:center}.placeholder .ico{font-size:42px}.placeholder h3{margin:11px 0 7px}.placeholder p{max-width:620px;margin:auto;color:var(--muted);font-size:14px;line-height:1.6}.hidden{display:none!important}.progress{padding:20px}.bar{height:10px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin:14px 0}.fill{height:100%;width:0;background:linear-gradient(90deg,var(--purple),var(--cyan));transition:.3s}.steps{display:grid;gap:8px}.step{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);opacity:.55}.step.on,.step.done{opacity:1}.step.on{border-color:rgba(139,92,246,.32)}.step .n{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.06);font-size:12px;font-weight:850}.step b{font-size:13px}.step small{display:block;color:var(--muted);margin-top:2px}.state{font-size:11px;color:var(--muted)}.done .state{color:#86efac}
+.hero{padding:21px}.kicker{font-size:12px;color:var(--muted)}.big{font-size:clamp(40px,6vw,60px);font-weight:950;letter-spacing:-2px;margin:6px 0}.sub{font-size:13px;color:#cbd5e1}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{padding:15px;border-radius:17px;background:var(--panel2);border:1px solid var(--line)}.metric .k{font-size:11px;color:var(--muted);margin-bottom:6px}.metric .v{font-size:17px;font-weight:850}.section{padding:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px}.head h3{margin:0;font-size:17px}.head span{font-size:11px;color:var(--muted)}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.source{padding:13px;border-radius:15px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}.source b{font-size:13px}.source small{display:block;color:var(--muted);line-height:1.45;margin-top:5px;word-break:break-word}.ai{white-space:pre-wrap;font-size:14px;line-height:1.68;color:#e2e8f0}.good{color:#86efac}.warn{color:#fde68a}
+@media(max-width:980px){.layout{grid-template-columns:1fr}.form{position:static}.metrics{grid-template-columns:1fr 1fr}}@media(max-width:680px){.crypto-strip,.row2,.grid2{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.status{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="top"><div class="brand"><div class="logo">AI</div><div><h1>KosFlow AI v9</h1><p>Wasmer online • crypto live • Ollama lokal</p></div></div><div class="status" id="topStatus">● Siap</div></div>
+
+ <section class="crypto-strip">
+  <article class="coin" id="coin-BTC"><div class="sym">BTC • LIVE</div><div class="price" data-price>Menunggu stream…</div><div class="chg" data-change>—</div><svg viewBox="0 0 180 54"><polyline data-line fill="none" stroke="currentColor" stroke-width="2" points=""/></svg></article>
+  <article class="coin" id="coin-ETH"><div class="sym">ETH • LIVE</div><div class="price" data-price>Menunggu stream…</div><div class="chg" data-change>—</div><svg viewBox="0 0 180 54"><polyline data-line fill="none" stroke="currentColor" stroke-width="2" points=""/></svg></article>
+  <article class="coin" id="coin-SOL"><div class="sym">SOL • LIVE</div><div class="price" data-price>Menunggu stream…</div><div class="chg" data-change>—</div><svg viewBox="0 0 180 54"><polyline data-line fill="none" stroke="currentColor" stroke-width="2" points=""/></svg></article>
+ </section>
+
+ <div class="layout">
+  <aside class="card form">
+   <div class="eyebrow">Local AI pairing</div><h2>Online web, Ollama tetap di laptop</h2>
+   <div class="desc">Jalankan <b>local_bridge/run_bridge.bat</b>, lalu masukkan token yang muncul. Website Wasmer akan mengirim prompt langsung ke bridge localhost; data finansial tidak perlu dikirim ke Ollama cloud.</div>
+
+   <div class="row2">
+    <div class="field"><label>Bridge URL</label><input id="bridge" value="http://127.0.0.1:8788"></div>
+    <div class="field"><label>Pairing token</label><input id="token" placeholder="token dari CMD"></div>
+   </div>
+   <button class="btn secondary" id="pairBtn">Hubungkan Ollama Lokal</button>
+   <div class="field"><label>Model Ollama</label><select id="model"><option>Hubungkan bridge dulu</option></select></div>
+
+   <div class="row2"><div class="field"><label>Saldo tersedia</label><input id="cash" type="number" value="400000"></div><div class="field"><label>Uang saku / minggu</label><input id="allowance" type="number" value="300000"></div></div>
+   <div class="row2"><div class="field"><label>Kos / bulan</label><input id="kos" type="number" value="700000"></div><div class="field"><label>Bayar awal</label><input id="weeks" type="number" value="2" min="1"></div></div>
+   <div class="row2"><div class="field"><label>Dana aman</label><input id="buffer" type="number" value="50000"></div><div class="field"><label>Kebutuhan / minggu</label><input id="needs" type="number" value="40000"></div></div>
+   <div class="field"><label>Profil risiko</label><select id="risk"><option value="low">Rendah</option><option value="medium" selected>Sedang</option><option value="high">Tinggi</option></select></div>
+   <div class="field"><label>Saham IDX</label><input id="stocks" value="BBCA,BBRI,BMRI,TLKM"></div>
+   <div class="field"><label>Bank digital</label><input id="banks" value="Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank"></div>
+   <div class="field"><label>Catatan</label><textarea id="notes" placeholder="Contoh: utamakan yang likuid dan jangan pakai uang kos."></textarea></div>
+   <button class="btn" id="analyzeBtn" disabled>Hitung & Analisis AI</button>
+   <div class="note">Card crypto di atas terus bergerak. Saat analisis dimulai, backend mengambil <b>snapshot baru</b>; snapshot itulah yang dikunci untuk analisis Ollama.</div>
+  </aside>
+
+  <main class="content">
+   <section class="card placeholder" id="placeholder"><div class="ico">🧠</div><h3>Belum ada analisis</h3><p>Pair Ollama lokal dulu. Hasil baru akan muncul setelah tombol <b>Hitung & Analisis AI</b> ditekan dan semua tahap selesai.</p></section>
+   <section class="card progress hidden" id="progress"><div class="head"><h3>AI sedang bekerja</h3><span id="pct">0%</span></div><div class="bar"><div class="fill" id="fill"></div></div><div class="steps" id="steps"></div></section>
+   <section id="results" class="hidden">
+    <section class="card hero"><div class="kicker">Sisa uang setelah pembayaran kos awal</div><div class="big" id="cashAfter">Rp0</div><div class="sub" id="heroSub">—</div></section>
+    <section class="metrics" style="margin-top:16px"><div class="metric"><div class="k">Bayar kos awal</div><div class="v" id="payKos">Rp0</div></div><div class="metric"><div class="k">Sisa kos</div><div class="v warn" id="remainingKos">Rp0</div></div><div class="metric"><div class="k">Pendapatan app / minggu</div><div class="v" id="apps">Rp0</div></div><div class="metric"><div class="k">Surplus aman investasi</div><div class="v good" id="safe">Rp0</div></div></section>
+    <section class="card section" style="margin-top:16px"><div class="head"><h3>Snapshot crypto untuk AI</h3><span id="snapTime">—</span></div><div class="grid2" id="snapGrid"></div></section>
+    <section class="card section" style="margin-top:16px"><div class="head"><h3>Data internet</h3><span>Saham • bank digital • reksadana</span></div><div class="grid2" id="research"></div></section>
+    <section class="card section" style="margin-top:16px"><div class="head"><h3>Analisis Ollama</h3><span id="modelUsed">—</span></div><div class="ai" id="aiText"></div></section>
+   </section>
+  </main>
+ </div>
+</div>
+<script>
+const idr=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Math.round(n||0));
+const income={app1:[517,917],app2:[1400,1400],app3:[5000,10000],app4:[0,0],app5:[0,0],app6:[0,0]};
+const histories={BTC:[],ETH:[],SOL:[]};let usdIdr=16000,last={};let ws=null,paired=false;
+function updateSpark(sym,v){
+ const a=histories[sym];a.push(v);if(a.length>40)a.shift();const el=document.querySelector(`#coin-${sym} [data-line]`);if(a.length<2)return;
+ const min=Math.min(...a),max=Math.max(...a),span=(max-min)||1;
+ el.setAttribute('points',a.map((p,i)=>`${i*(180/(a.length-1))},${50-((p-min)/span)*44}`).join(' '));
+}
+function renderTick(sym,price,change){
+ const card=document.getElementById('coin-'+sym);const prev=last[sym];last[sym]=price;
+ card.classList.remove('flash-up','flash-down');void card.offsetWidth;
+ if(prev!=null)card.classList.add(price>=prev?'flash-up':'flash-down');
+ card.querySelector('[data-price]').textContent=idr(price*usdIdr);
+ const c=card.querySelector('[data-change]');c.textContent=`${change>=0?'+':''}${change.toFixed(2)}% 24j`;c.className='chg '+(change>=0?'up':'down');
+ updateSpark(sym,price);
+}
+async function getFx(){try{const r=await fetch('https://open.er-api.com/v6/latest/USD');const d=await r.json();if(d.rates?.IDR)usdIdr=d.rates.IDR}catch{}}
+function startCrypto(){
+ getFx();
+ try{
+  ws=new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
+  ws.onmessage=e=>{const arr=JSON.parse(e.data);for(const x of arr){if(x.s==='BTCUSDT')renderTick('BTC',+x.c,((+x.c-+x.o)/+x.o)*100);if(x.s==='ETHUSDT')renderTick('ETH',+x.c,((+x.c-+x.o)/+x.o)*100);if(x.s==='SOLUSDT')renderTick('SOL',+x.c,((+x.c-+x.o)/+x.o)*100)}};
+  ws.onerror=()=>fallbackCrypto();
+  ws.onclose=()=>setTimeout(startCrypto,2500);
+ }catch{fallbackCrypto()}
+}
+let poll=null;function fallbackCrypto(){if(poll)return;poll=setInterval(async()=>{try{const d=await (await fetch('/api/crypto-snapshot',{cache:'no-store'})).json();for(const x of d.items||[]){if(x.price_usdt)renderTick(x.symbol,+x.price_usdt,+x.change_24h)}}catch{}},2500)}
+async function pair(){
+ const url=document.getElementById('bridge').value.replace(/\/$/,'');const token=document.getElementById('token').value.trim();const btn=document.getElementById('pairBtn');btn.disabled=true;btn.textContent='Menghubungkan…';
+ try{
+  const h=await fetch(url+'/health',{cache:'no-store'});if(!h.ok)throw new Error('Bridge tidak merespons');
+  const r=await fetch(url+'/models',{headers:{'X-KosFlow-Token':token}});const d=await r.json();if(!r.ok)throw new Error(d.error||'Token salah');
+  const sel=document.getElementById('model');sel.innerHTML='';(d.models||[]).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
+  const pref=(d.models||[]).find(x=>x.includes('Qwen3.5-9B'))||(d.models||[]).find(x=>x==='qwen3.5:4b')||(d.models||[])[0];if(pref)sel.value=pref;
+  paired=true;document.getElementById('analyzeBtn').disabled=false;document.getElementById('topStatus').textContent='● Ollama lokal terhubung';btn.textContent='Ollama Terhubung ✓';
+ }catch(e){paired=false;document.getElementById('analyzeBtn').disabled=true;document.getElementById('topStatus').textContent='● Bridge gagal';btn.textContent='Hubungkan Ollama Lokal';alert(e.message)}
+ finally{btn.disabled=false}
+}
+const stepDefs=[['budget','Menghitung uang & kos'],['crypto','Mengunci snapshot crypto'],['stocks','Mengambil saham IDX'],['banks','Mencari bank digital'],['funds','Mencari reksadana'],['match','Mencocokkan data'],['ollama','Ollama menganalisis'],['done','Menyiapkan hasil']];
+function renderSteps(){document.getElementById('steps').innerHTML=stepDefs.map((x,i)=>`<div class="step" id="s-${x[0]}"><div class="n">${i+1}</div><div><b>${x[1]}</b><small>Menunggu</small></div><div class="state">—</div></div>`).join('')}
+function step(key,p,msg){for(const [k] of stepDefs){const e=document.getElementById('s-'+k);if(e.classList.contains('on')){e.classList.remove('on');e.classList.add('done');e.querySelector('.state').textContent='Selesai'}}const e=document.getElementById('s-'+key);e.classList.add('on');e.querySelector('small').textContent=msg||'Memproses';e.querySelector('.state').textContent='Proses';document.getElementById('fill').style.width=p+'%';document.getElementById('pct').textContent=p+'%'}
+function calcBudget(){
+ const cash=+document.getElementById('cash').value||0,allow=+document.getElementById('allowance').value||0,kos=+document.getElementById('kos').value||0,weeks=+document.getElementById('weeks').value||1,needs=+document.getElementById('needs').value||0,buffer=+document.getElementById('buffer').value||0;
+ const raw=kos/30*(weeks*7),pay=Math.ceil(raw/10000)*10000,remaining=Math.max(0,kos-pay),after=cash-pay,amin=(517+1400+5000)*7,amax=(917+1400+10000)*7,safe=Math.max(0,after+allow+amin-needs-buffer-remaining);
+ return {initial_kos_payment:pay,remaining_kos:remaining,cash_after_initial_kos:after,app_income_weekly_min:amin,app_income_weekly_max:amax,safe_investment_amount:safe,buffer,weekly_needs:needs,allowance:allow,initial_days:weeks*7}
+}
+async function analyze(){
+ if(!paired)return;const btn=document.getElementById('analyzeBtn');btn.disabled=true;document.getElementById('placeholder').classList.add('hidden');document.getElementById('results').classList.add('hidden');document.getElementById('progress').classList.remove('hidden');renderSteps();
+ try{
+  step('budget',8,'Menghitung saldo, kos, kebutuhan, dan dana aman');const budget=calcBudget();
+  step('crypto',22,'Mengambil snapshot baru khusus analisis');const crypto=await (await fetch('/api/crypto-snapshot',{cache:'no-store'})).json();
+  step('stocks',38,'Mencari quote saham Indonesia');const stocks=await (await fetch('/api/stocks?symbols='+encodeURIComponent(document.getElementById('stocks').value),{cache:'no-store'})).json();
+  step('banks',54,'Mencari bunga Bank Jago, Saqu, Neo, Krom');const banks=await (await fetch('/api/banks?names='+encodeURIComponent(document.getElementById('banks').value),{cache:'no-store'})).json();
+  step('funds',68,'Mencari data reksadana terbaru');const funds=await (await fetch('/api/funds',{cache:'no-store'})).json();
+  step('match',78,'Menyusun data terverifikasi untuk Ollama');
+  const pack={budget,crypto_snapshot:crypto,stocks,banks,funds,risk:document.getElementById('risk').value,notes:document.getElementById('notes').value};
+  const prompt=`Kamu adalah analis keuangan pribadi Indonesia. Analisis JSON berikut. Jangan pernah menjanjikan return. Prioritaskan kos, kebutuhan, transportasi, dana aman. Jangan pakai sisa kos sebagai modal investasi. Gunakan hanya angka yang benar-benar tersedia. Untuk bank/reksadana, jika snippet tidak cukup terverifikasi, katakan belum cukup. Bedakan crypto snapshot dan harga live yang terus bergerak. Saham publik mungkin delay. Beri rekomendasi alokasi konservatif/moderat/spekulatif sesuai profil risiko dan sebut sumber yang dipakai.\n\nDATA:\n${JSON.stringify(pack,null,2)}\n\nFormat: RINGKASAN KEUANGAN; BANK DIGITAL; REKSADANA; SAHAM IDX; CRYPTO; ALOKASI; RISIKO; SUMBER.`;
+  step('ollama',86,'Mengirim data ke Ollama lokal di laptop');
+  const bridge=document.getElementById('bridge').value.replace(/\/$/,''),token=document.getElementById('token').value.trim(),model=document.getElementById('model').value;
+  const rr=await fetch(bridge+'/generate',{method:'POST',headers:{'Content-Type':'application/json','X-KosFlow-Token':token},body:JSON.stringify({model,prompt,temperature:.15})});const ai=await rr.json();if(!rr.ok)throw new Error(ai.error||'Ollama gagal');
+  step('done',98,'Menampilkan hasil akhir');
+  document.getElementById('cashAfter').textContent=idr(budget.cash_after_initial_kos);document.getElementById('heroSub').textContent=`${budget.initial_days} hari dibayar • sisa kos ${idr(budget.remaining_kos)}`;
+  document.getElementById('payKos').textContent=idr(budget.initial_kos_payment);document.getElementById('remainingKos').textContent=idr(budget.remaining_kos);document.getElementById('apps').textContent=`${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;document.getElementById('safe').textContent=idr(budget.safe_investment_amount);
+  document.getElementById('snapTime').textContent=crypto.fetched_at||'';document.getElementById('snapGrid').innerHTML=(crypto.items||[]).map(x=>`<div class="source"><b>${x.symbol} snapshot</b><small>${idr(x.price_idr)} • 24j ${Number(x.change_24h||0).toFixed(2)}%</small><small>${x.source}</small></div>`).join('');
+  const rs=[...(stocks.items||[]),...(banks.items||[]),...(funds.items||[])];document.getElementById('research').innerHTML=rs.map(x=>`<div class="source"><b>${x.category||x.symbol||'Sumber'} ${x.title?'• '+x.title:''}</b><small>${x.snippet||((x.price!=null)?idr(x.price):'')}</small><small>${x.source||x.url||''}</small></div>`).join('');
+  document.getElementById('modelUsed').textContent=model;document.getElementById('aiText').textContent=ai.response||'';
+  document.getElementById('progress').classList.add('hidden');document.getElementById('results').classList.remove('hidden');document.getElementById('topStatus').textContent='● Analisis selesai';
+ }catch(e){document.getElementById('progress').classList.add('hidden');document.getElementById('placeholder').classList.remove('hidden');document.getElementById('placeholder').innerHTML=`<div class="ico">⚠️</div><h3>Analisis gagal</h3><p>${e.message}</p>`;document.getElementById('topStatus').textContent='● Gagal'}finally{btn.disabled=false}
+}
+document.getElementById('pairBtn').addEventListener('click',pair);document.getElementById('analyzeBtn').addEventListener('click',analyze);startCrypto();
+</script>
+</body>
+</html>
