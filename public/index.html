@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.18</title>
+<title>KosFlow Finance v10.22</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -578,13 +578,14 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
         <div class="grid2">
           <div class="field">
-            <label>Proyeksi sisa uang saku / minggu</label>
+            <label>Dana aman otomatis</label>
             <input id="buffer" type="number" value="260000" readonly />
-            <div class="range-help">Otomatis = uang saku mingguan − kebutuhan mingguan. Ini hanya proyeksi, karena saldo aktualmu nanti bisa berubah setelah kamu cek e-wallet dan rekening.</div>
+            <div class="range-help">Otomatis mengikuti saldo pribadi aktual setelah pembayaran kos pribadi, lalu dikurangi kebutuhan minggu ini. Kalau saldo e-wallet/rekening berubah, nilai ini ikut berubah.</div>
           </div>
           <div class="field">
-            <label>Kebutuhan / minggu</label>
+            <label>Kebutuhan minggu ini (7 hari)</label>
             <input id="needs" type="number" value="40000" />
+            <div class="range-help">Isi total kebutuhan untuk 7 hari yang sedang berjalan, misalnya makan, minum, bensin, dan kebutuhan kampus. Nilai ini menjadi pengurang saldo pribadi saat menghitung dana aman.</div>
           </div>
         </div>
 
@@ -610,24 +611,18 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           </select>
         </div>
 
-        <div class="grid2">
-          <div class="field">
-            <label>Maksimum dana untuk 1 lot</label>
-            <input id="stockLotBudget" type="number" value="100000" min="1000" step="1000" />
-          </div>
-          <div class="field">
-            <label>Jumlah rekomendasi saham</label>
-            <select id="stockRecommendationCount">
-              <option value="3">3 saham</option>
-              <option value="5" selected>5 saham</option>
-              <option value="8">8 saham</option>
-              <option value="10">10 saham</option>
-            </select>
-          </div>
+        <div class="field">
+          <label>Jumlah rekomendasi saham</label>
+          <select id="stockRecommendationCount">
+            <option value="3">3 saham</option>
+            <option value="5" selected>5 saham</option>
+            <option value="8">8 saham</option>
+            <option value="10">10 saham</option>
+          </select>
         </div>
 
         <div class="note" style="margin-bottom:14px">
-          1 lot saham Indonesia = <b>100 lembar</b>. Saat mode otomatis aktif, AI akan mencari saham IDX yang estimasi biaya 1 lot-nya tidak melebihi batas dana ini, lalu membandingkan kandidat yang paling sesuai. Sistem juga mencari informasi dividen terbaru untuk tiap kandidat.
+          1 lot saham Indonesia = <b>100 lembar</b>. Saat mode otomatis aktif, sistem hanya mencari dan membandingkan kandidat saham IDX berdasarkan harga 1 lot, likuiditas, perubahan harga, dividen, dan risiko. Pencarian saham tidak mengurangi saldo, surplus, atau dana simulasi. Sistem hanya memberi tahu biaya 1 lot, apakah dana saat ini cukup, dan berapa kekurangannya.
         </div>
 
         <div class="field">
@@ -681,7 +676,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
               <option value="1">Tahunan</option>
             </select>
           </div>
-          <div class="range-help">Dana simulasi otomatis memakai Surplus Aman Investasi dari saldo pribadi aktual. AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
+          <div class="range-help">Dana simulasi otomatis mengikuti Dana Aman Otomatis dari saldo pribadi aktual setelah kos dan kebutuhan. AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
         </div>
 
 
@@ -748,7 +743,11 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <div class="metric"><div class="k">Bayar selanjutnya</div><div class="v" id="nextKosPayment">—</div></div>
           <div class="metric"><div class="k">Pendapatan app / minggu</div><div class="v" id="apps">Rp0</div></div>
           <div class="metric"><div class="k">Surplus aman investasi</div><div class="v" id="safe">Rp0</div></div>
-          <div class="metric"><div class="k">Proyeksi sisa uang saku</div><div class="v" id="nextPeriodSafeHero">Rp0</div></div>
+          <div class="metric" id="surplusFormulaNote">
+            <div class="k">Rumus dana aman saat ini</div>
+            <div class="v" id="surplusFormulaValue" style="font-size:15px">Saldo pribadi setelah kos − kebutuhan</div>
+          </div>
+          <div class="metric"><div class="k">Dana aman otomatis</div><div class="v" id="nextPeriodSafeHero">Rp0</div></div>
           <div class="metric"><div class="k">Saldo pribadi tersisa</div><div class="v" id="personalAvailableHero">Rp0</div></div>
           <div class="metric"><div class="k">Dana orang tua untuk kos</div><div class="v" id="parentKosHero">Rp0</div></div>
           <div class="metric" style="grid-column:1/-1">
@@ -885,9 +884,11 @@ async function decryptToken(ciphertext,iv){
   }catch(e){return ''}
 }
 function getStockDiscoverySettings(){
+  const budget = calcBudget();
   return {
     stock_lot_mode: document.getElementById('stockLotMode')?.value || 'auto',
-    stock_lot_budget: +(document.getElementById('stockLotBudget')?.value || 0),
+    // Hanya batas pencarian kandidat, tidak pernah memotong saldo.
+    stock_lot_budget: Math.max(0, budget.safe_investment_amount || 0),
     stock_recommendation_count: +(document.getElementById('stockRecommendationCount')?.value || 5)
   };
 }
@@ -1396,12 +1397,25 @@ document.getElementById('kosFundingScope').addEventListener('change', ()=>{ upda
 syncKosFundingUI();
 updateKosScopeHint();
 
-['allowance','needs','cash','kosSelfContribution','kosParentContribution','kosSource'].forEach(id=>{
+[
+  'cash','allowance','incomeWeeklyMin','incomeWeeklyMax','kos','weeks',
+  'needs','kosSelfContribution','kosParentContribution','kosSource',
+  'kosCycleStart','kosFundingScope','bankSimulationMonths','bankCompoundFrequency'
+].forEach(id=>{
   const el=document.getElementById(id);
   if(el){
-    el.addEventListener('input', ()=>{
+    const recalc=()=>{
       updateAutoMoneyPreview();
       syncKosFundingUI();
+      refreshFinancialPreview();
+    };
+    el.addEventListener('input', recalc);
+    el.addEventListener('change', recalc);
+  }
+});
+updateAutoMoneyPreview();
+syncKosFundingUI();
+refreshFinancialPreview();
     });
     el.addEventListener('change', ()=>{
       updateAutoMoneyPreview();
@@ -1526,6 +1540,58 @@ function formatDateID(date){
   if(!date || isNaN(date)) return '—';
   return new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'long',year:'numeric'}).format(date);
 }
+function refreshFinancialPreview(){
+  try{
+    const budget = calcBudget();
+
+    const safeEl=document.getElementById('safe');
+    if(safeEl) safeEl.textContent=idr(budget.safe_investment_amount||0);
+
+    const nextSafe=document.getElementById('nextPeriodSafeHero');
+    if(nextSafe) nextSafe.textContent=idr(budget.projected_next_period_safe_fund||0);
+
+    const personalHero=document.getElementById('personalAvailableHero');
+    if(personalHero) personalHero.textContent=idr(budget.personal_available_balance||0);
+
+    const parentHero=document.getElementById('parentKosHero');
+    if(parentHero) parentHero.textContent=idr(budget.kos_parent_contribution||0);
+
+    const formula=document.getElementById('surplusFormulaValue');
+    if(formula){
+      formula.textContent =
+        `${idr(budget.personal_available_balance||0)} − ${idr(budget.weekly_needs||0)} = ${idr(budget.safe_investment_amount||0)}`;
+    }
+
+    const bankSim=document.getElementById('bankSimulationAmount');
+    if(bankSim){
+      bankSim.value=Math.round(
+        budget.bank_simulation_auto_amount ?? budget.safe_investment_amount ?? 0
+      );
+    }
+
+    const payKos=document.getElementById('payKos');
+    if(payKos) payKos.textContent=idr(budget.initial_kos_payment||0);
+
+    const remainingKos=document.getElementById('remainingKos');
+    if(remainingKos) remainingKos.textContent=idr(budget.remaining_kos||0);
+
+    const cashAfter=document.getElementById('cashAfter');
+    if(cashAfter) cashAfter.textContent=idr(budget.personal_available_balance||0);
+
+    const nextPay=document.getElementById('nextKosPayment');
+    if(nextPay){
+      nextPay.textContent=budget.next_kos_payment_date
+        ? formatDateID(parseLocalDate(budget.next_kos_payment_date))
+        : '—';
+    }
+
+    return budget;
+  }catch(e){
+    console.warn('refreshFinancialPreview', e);
+    return null;
+  }
+}
+
 function updateAutoMoneyPreview(){
   const cash=+document.getElementById('cash')?.value||0;
   const allowance=+document.getElementById('allowance')?.value||0;
@@ -1533,8 +1599,8 @@ function updateAutoMoneyPreview(){
   const selfPay=+document.getElementById('kosSelfContribution')?.value||0;
   const parentPay=+document.getElementById('kosParentContribution')?.value||0;
 
-  const autoSafe=Math.max(0, allowance-needs);
   const personalAfter=Math.max(0, cash-selfPay);
+  const autoSafe=Math.max(0, personalAfter-needs);
 
   const bufferEl=document.getElementById('buffer');
   if(bufferEl) bufferEl.value=Math.round(autoSafe);
@@ -1574,8 +1640,11 @@ function calcBudget(){
   const pay = Math.ceil(raw / 10000) * 10000;
   const remaining = Math.max(0, kos - pay);
 
-  // Dana aman otomatis hanya berasal dari uang saku minus kebutuhan mingguan.
-  const autoSafe = Math.max(0, allow - needs);
+  // Dana aman otomatis mengikuti saldo pribadi aktual setelah pembayaran kos pribadi,
+  // lalu kebutuhan minggu ini menjadi pengurang.
+  // Uang saku tetap dicatat sebagai pemasukan mingguan, tetapi tidak menjadi dasar utama dana aman.
+  const provisionalPersonalAfterKos = Math.max(0, cash - Math.min(pay, selfInput || 0));
+  const autoSafe = Math.max(0, provisionalPersonalAfterKos - needs);
   const bufferEl = document.getElementById('buffer');
   if(bufferEl) bufferEl.value = Math.round(autoSafe);
 
@@ -1611,19 +1680,23 @@ function calcBudget(){
   // Saldo pribadi TIDAK pernah mencakup dana orang tua.
   const personalCashAfterKos = Math.max(0, cash - initialSelfPaid);
 
+  // Dana aman aktual = saldo pribadi setelah kontribusi kos - kebutuhan minggu ini.
+  const finalAutoSafe = Math.max(0, personalCashAfterKos - needs);
+  if(bufferEl) bufferEl.value = Math.round(finalAutoSafe);
+
   // Jika kontribusi orang tua ditujukan untuk sisa kos, tetap tampil terpisah.
   const parentKosReserved = parentContribution;
 
-  // Dana aman otomatis adalah PROYEKSI dari uang saku periode berikutnya,
-  // jadi jangan dikurangkan lagi dari saldo pribadi saat ini.
-  const safe = Math.max(0, personalCashAfterKos - needs);
+  // Surplus aman investasi mengikuti nilai aktual yang sama.
+  // Tidak ada pengurang dari input saham karena saham hanya untuk pencarian.
+  const safe = finalAutoSafe;
 
   const projectedWeeklySurplusMin = Math.max(0, allow + incomeMin - needs);
   const projectedWeeklySurplusMax = Math.max(0, allow + incomeMax - needs);
 
   // Dana simulasi bank memakai saldo pribadi AKTUAL yang benar-benar tersedia sekarang.
   // Jadi saat kamu memperbarui total e-wallet/rekening, nominal simulasi ikut berubah.
-  const bankSimulationAutoAmount = Math.max(0, safe);
+  const bankSimulationAutoAmount = Math.max(0, finalAutoSafe);
 
   const bankSimEl = document.getElementById('bankSimulationAmount');
   if(bankSimEl) bankSimEl.value = Math.round(bankSimulationAutoAmount);
@@ -1659,14 +1732,14 @@ function calcBudget(){
 
     allowance: allow,
     weekly_needs: needs,
-    buffer: autoSafe,
-    auto_safe_fund: autoSafe,
+    buffer: finalAutoSafe,
+    auto_safe_fund: finalAutoSafe,
 
     app_income_weekly_min: incomeMin,
     app_income_weekly_max: incomeMax,
     projected_weekly_surplus_min: projectedWeeklySurplusMin,
     projected_weekly_surplus_max: projectedWeeklySurplusMax,
-    projected_next_period_safe_fund: autoSafe,
+    projected_next_period_safe_fund: finalAutoSafe,
     projected_personal_balance_next_period: personalCashAfterKos + allow - needs,
     bank_simulation_auto_amount: bankSimulationAutoAmount,
     safe_investment_amount: safe,
@@ -1748,7 +1821,7 @@ function buildNotesContext(){
     pendapatan_tambahan_min_per_minggu:+document.getElementById('incomeWeeklyMin')?.value||0,
     pendapatan_tambahan_max_per_minggu:+document.getElementById('incomeWeeklyMax')?.value||0,
     kebutuhan_per_minggu:+document.getElementById('needs')?.value||0,
-    proyeksi_sisa_uang_saku_per_minggu:budget.projected_next_period_safe_fund||0,
+    dana_aman_otomatis_dari_saldo_aktual:budget.auto_safe_fund||0,
     saldo_pribadi_proyeksi_periode_berikutnya:budget.projected_personal_balance_next_period||0,
     dana_simulasi_bank_dari_saldo_aktual:budget.bank_simulation_auto_amount||0,
     kos_per_bulan:+document.getElementById('kos')?.value||0,
@@ -1763,7 +1836,7 @@ function buildNotesContext(){
     surplus_aman_investasi_saat_ini:budget.safe_investment_amount||0,
     profil_risiko:document.getElementById('risk')?.value||'medium',
     mode_saham_1_lot:document.getElementById('stockLotMode')?.value||'auto',
-    budget_1_lot:+document.getElementById('stockLotBudget')?.value||0,
+    budget_1_lot_otomatis_dari_surplus:Math.max(0,budget.safe_investment_amount||0),
     jumlah_rekomendasi_saham:+document.getElementById('stockRecommendationCount')?.value||5,
     daftar_saham_manual:document.getElementById('stocks')?.value||'',
     daftar_bank:document.getElementById('banks')?.value||'',
@@ -1805,7 +1878,7 @@ Aturan:
 - Rangkum kondisi dan prioritas yang paling penting.
 - Pisahkan saldo pribadi, uang saku, pendapatan tambahan, dan dana orang tua untuk kos.
 - Dana orang tua untuk kos bukan saldo pribadi dan bukan modal investasi.
-- Jika surplus aman investasi = 0, jelaskan bahwa belum ada dana investasi yang benar-benar tersedia saat ini. Gunakan saldo pribadi aktual sebagai dasar, bukan proyeksi uang saku masa depan.
+- Jika surplus aman investasi = 0, jelaskan bahwa belum ada dana investasi yang benar-benar tersedia saat ini. Gunakan saldo pribadi aktual setelah pembayaran kos pribadi dan kebutuhan minggu ini sebagai dasar. Uang saku adalah pemasukan terpisah, bukan dasar utama dana aman.
 - Sesuaikan rekomendasi bank dengan range bunga pilihan.
 - Jika pencarian saham otomatis aktif, arahkan agar saham 1 lot sesuai budget serta memperhatikan dividen, likuiditas, dan risiko.
 - Simulasi crypto/saham adalah skenario, bukan prediksi.
@@ -1873,7 +1946,7 @@ async function analyze(){
       + '&stock_lot_mode='
       + encodeURIComponent(document.getElementById('stockLotMode').value)
       + '&stock_lot_budget='
-      + encodeURIComponent(document.getElementById('stockLotBudget').value)
+      + encodeURIComponent(Math.max(0, calcBudget().safe_investment_amount || 0))
       + '&stock_recommendation_count='
       + encodeURIComponent(document.getElementById('stockRecommendationCount').value)
       + '&bank_rate_ranges='
@@ -1895,7 +1968,7 @@ async function analyze(){
       internet_research_timestamp: researchPack.fetched_at || null,
       risk: document.getElementById('risk').value,
       stock_lot_mode: document.getElementById('stockLotMode').value,
-      stock_lot_budget: +document.getElementById('stockLotBudget').value,
+      stock_lot_budget: Math.max(0, budget.safe_investment_amount || 0),
       stock_recommendation_count: +document.getElementById('stockRecommendationCount').value,
       bank_interest_ranges: getSelectedBankRateRanges(),
       bank_simulation_amount:0,
@@ -1981,7 +2054,7 @@ Aturan:
 - Dana orang tua untuk kos berasal dari form terpisah di bagian atas dan merupakan kantong terpisah. TIDAK boleh dianggap sebagai saldo pribadi, dana aman, atau modal investasi.
 - Gunakan personal_available_balance untuk saldo pribadi yang masih tersedia.
 - Gunakan kos_parent_contribution hanya untuk kewajiban kos yang ditanggung orang tua.
-- auto_safe_fund dihitung otomatis dari uang saku mingguan dikurangi kebutuhan mingguan; jangan mencampurnya dengan kontribusi orang tua. Jangan pernah menulis seolah-olah "uang kos dari orang tua dimanfaatkan untuk investasi".
+- auto_safe_fund dihitung otomatis dari uang saku mingguan dikurangi kebutuhan minggu ini; jangan mencampurnya dengan kontribusi orang tua. Jangan pernah menulis seolah-olah "uang kos dari orang tua dimanfaatkan untuk investasi".
 - Bedakan tegas antara saldo sekarang, uang saku mingguan, pendapatan tambahan/app mingguan, dan sumber pembayaran kos. Keempatnya adalah kategori berbeda. Jangan menjumlahkannya seolah semuanya berasal dari sumber yang sama.
 - Gunakan kos_self_contribution dan kos_parent_contribution sebagai nominal pembayaran kos yang benar-benar berasal dari masing-masing pihak. Jika ada initial_kos_funding_gap, sebutkan kekurangan bayar awal tersebut sebelum membahas investasi.
 - Bedakan tegas antara uang yang SUDAH ADA sekarang dan pendapatan/uang saku yang BARU DIPROYEKSIKAN. Jangan menyebut proyeksi pendapatan masa depan sebagai dana investasi yang sudah tersedia.
@@ -2001,7 +2074,7 @@ Aturan:
 - Pilih maksimal 3 penempatan bank. allocation_percent seluruh bank harus berjumlah 100. Utamakan rate yang masuk bank_interest_ranges, lalu likuiditas dan syarat minimum setoran.
 - Jika tidak ada rate yang cukup terverifikasi, kembalikan bank_placements sebagai array kosong.
 - bank_placements dipakai aplikasi untuk simulasi compounding; karena itu annual_rate_percent wajib berupa angka p.a., bukan teks.
-- Jika stock_lot_mode = "auto", cari dan prioritaskan saham IDX yang biaya 1 lot (100 lembar) <= stock_lot_budget.
+- Jika stock_lot_mode = "auto", pencarian saham bersifat informasional dan TIDAK mengurangi saldo. Untuk tiap kandidat jelaskan biaya 1 lot, apakah surplus saat ini cukup, dan jika belum cukup hitung kekurangannya. Jangan anggap saham sudah dibeli. Jika stock_lot_budget > 0, prioritaskan kandidat yang biaya 1 lot (100 lembar) <= batas itu; jika 0, tetap cari kandidat tanpa batas dana.
 - Untuk setiap rekomendasi saham, pertimbangkan harga per lembar, estimasi biaya 1 lot, likuiditas, volatilitas/pergerakan terbaru, kualitas data, dividen terbaru bila tersedia, dividend yield perkiraan bila tersedia, dan kecocokan dengan profil risiko.
 - Dividen tidak boleh dianggap pasti berulang. Jika data dividen berasal dari pencarian web/fallback dan belum terverifikasi, tulis sebagai informasi historis/indikatif.
 - JANGAN merekomendasikan saham hanya karena naik pada hari itu. Perubahan 1 hari hanya indikator tambahan, bukan alasan utama beli.
@@ -2045,6 +2118,8 @@ ${JSON.stringify(payload)}
       budget.next_kos_payment_date ? formatDateID(parseLocalDate(budget.next_kos_payment_date)) : '—';
     document.getElementById('apps').textContent = `${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
     document.getElementById('safe').textContent = idr(budget.safe_investment_amount);
+    document.getElementById('surplusFormulaValue').textContent =
+      `${idr(budget.personal_available_balance)} − ${idr(budget.weekly_needs)} = ${idr(budget.safe_investment_amount)}`;
     document.getElementById('nextPeriodSafeHero').textContent = idr(budget.projected_next_period_safe_fund);
     const autoBankSim=document.getElementById('bankSimulationAmount');
     if(autoBankSim) autoBankSim.value=Math.round(
@@ -2070,22 +2145,36 @@ ${JSON.stringify(payload)}
     `).join('');
 
     const candidates = stocks.candidates || stocks.items || [];
-    const lotBudget = +(document.getElementById('stockLotBudget').value || 0);
+    const lotBudget = Math.max(0, budget.safe_investment_amount || 0);
     document.getElementById('stockCandidateMeta').textContent =
       document.getElementById('stockLotMode').value === 'auto'
         ? `Maks. ${idr(lotBudget)} per 1 lot`
         : 'Daftar saham manual';
-    document.getElementById('stockCandidates').innerHTML = candidates.slice(0, +document.getElementById('stockRecommendationCount').value || 5).map(x=>`
-      <div class="source">
-        <b>${x.symbol || '-'}</b>
-        <small>Harga/lembar: ${x.price != null ? idr(x.price) : '-'}</small>
-        <small>Estimasi 1 lot: ${x.lot_cost != null ? idr(x.lot_cost) : (x.price != null ? idr(x.price*100) : '-')}</small>
-        <small>Perubahan: ${x.change_percent != null ? Number(x.change_percent).toFixed(2)+'%' : '-'}</small>
-        <small>Dividen: ${x.dividend_per_share != null ? idr(x.dividend_per_share)+'/lembar' : (x.dividend_snippet ? escapeHtml(x.dividend_snippet.slice(0,120)) : 'Belum ditemukan')}</small>
-        <small>Dividend yield indikatif: ${x.dividend_yield_estimate != null ? Number(x.dividend_yield_estimate).toFixed(2)+'%' : '-'}</small>
-        <small>${x.dividend_source_url ? 'Sumber dividen: '+escapeHtml(x.dividend_source_url) : (x.source || '')}</small>
-      </div>
-    `).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Tidak ditemukan saham 1 lot yang sesuai batas dana saat ini.</small></div>';
+    document.getElementById('stockCandidates').innerHTML =
+      candidates.slice(0, +document.getElementById('stockRecommendationCount').value || 5).map(x=>{
+        const lotCost = x.lot_cost != null ? Number(x.lot_cost) : (x.price != null ? Number(x.price)*100 : 0);
+        const available = Math.max(0, Number(budget.safe_investment_amount||0));
+        const gap = Math.max(0, lotCost - available);
+        const enough = lotCost > 0 && available >= lotCost;
+        const fundingStatus = enough
+          ? `✅ Cukup dana • sisa ${idr(available-lotCost)}`
+          : lotCost > 0
+          ? `💡 Butuh tambahan ${idr(gap)}`
+          : 'ℹ️ Biaya 1 lot belum tersedia';
+        const actionStatus = enough ? 'Bisa dipertimbangkan' : 'Pantau / kumpulkan dana';
+        return `<div class="source">
+          <b>${escapeHtml(x.symbol || '-')}</b>
+          <small>Harga/lembar: ${x.price != null ? idr(x.price) : '-'}</small>
+          <small>1 lot = 100 lembar</small>
+          <small><strong>Dana yang dibutuhkan: ${lotCost ? idr(lotCost) : '-'}</strong></small>
+          <small>${fundingStatus}</small>
+          <small>Status: ${actionStatus}</small>
+          <small>Perubahan: ${x.change_percent != null ? Number(x.change_percent).toFixed(2)+'%' : '-'}</small>
+          ${x.dividend_per_share!=null ? `<small>Dividen indikatif: ${idr(Number(x.dividend_per_share)||0)}/saham</small>` : ''}
+          <small>${escapeHtml(x.source || '')}</small>
+          <small style="color:#8190aa">Saldo tidak dikurangi otomatis.</small>
+        </div>`;
+      }).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Sistem belum menemukan kandidat saham untuk ditampilkan.</small></div>';
 
     const refs = [ ...(stocks.items||[]), ...(banks.items||[]), ...(funds.items||[]) ];
     document.getElementById('research').innerHTML = refs.map(x=>`
@@ -2146,7 +2235,7 @@ document.getElementById('buffer').addEventListener('input', e=>{
   document.getElementById('miniSafe').textContent = idr(+e.target.value||0);
   document.getElementById('miniSafe2').textContent = idr(+e.target.value||0);
 });
-['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct','notes','kosSource','model'].forEach(id=>{
+['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockRecommendationCount','banks','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct','notes','kosSource','model'].forEach(id=>{
   const el=document.getElementById(id); if(el){el.addEventListener('input',scheduleSave);el.addEventListener('change',scheduleSave)}
 });
 
