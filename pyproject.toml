@@ -1,10 +1,9 @@
 [project]
 name = "kosflow-finance-ai"
-version = "0.9.1"
-description = "KosFlow Finance AI - personal finance planner with local Ollama"
+version = "0.9.2"
+description = "KosFlow Finance AI - Wasmer compatible pure ASGI backend with local Ollama bridge"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.116.1",
-    "uvicorn[standard]==0.35.0",
+    "uvicorn==0.35.0",
     "httpx==0.28.1"
 ]
