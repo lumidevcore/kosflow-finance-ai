@@ -166,3 +166,14 @@ Perubahan:
 - Nilainya otomatis mengikuti `Surplus Aman Investasi`.
 - Jika surplus aman investasi Rp0, simulasi bank juga Rp0.
 - Durasi dan frekuensi compounding tetap bisa dipilih manual.
+
+
+## Update v10.16 — Generate Catatan AI
+
+Tidak ada migration database baru.
+
+Fitur:
+- Tombol `Generate Catatan AI` membuat isi Catatan otomatis dari input form terbaru.
+- AI membaca saldo pribadi, uang saku, pendapatan tambahan, kebutuhan, dana aman otomatis, pembayaran kos, dana orang tua, profil risiko, pilihan saham, bank, dan simulasi.
+- Hasil Catatan bisa diedit manual setelah dibuat.
+- Catatan tetap disimpan menggunakan field `notes` yang sudah ada.

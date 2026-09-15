@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.15</title>
+<title>KosFlow Finance v10.16</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -175,6 +175,11 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
   background:linear-gradient(180deg,#ffffff,#f4f8ff);
   color:#253b59;border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)
 }
+
+.btn.small{width:auto;padding:10px 14px;border-radius:14px;font-size:12.5px;box-shadow:none}
+.note-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.note-actions label{margin:0}
+.note-generate-status{margin-top:8px;min-height:18px;font-size:12px;color:#7386a5}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .note{
   padding:14px 15px;border-radius:18px;border:1px solid rgba(58,85,129,.08);
@@ -714,8 +719,12 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         </div>
 
         <div class="field">
-          <label>Catatan</label>
-          <textarea id="notes" placeholder="Contoh: utamakan kebutuhan pokok, jangan pakai uang kos, dan prioritaskan opsi yang likuid."></textarea>
+          <div class="note-actions">
+            <label>Catatan</label>
+            <button type="button" class="btn secondary small" id="generateNotesBtn">✨ Generate Catatan AI</button>
+          </div>
+          <textarea id="notes" placeholder="Bisa ditulis manual atau dibuat otomatis oleh AI dari semua input yang sudah kamu isi."></textarea>
+          <div class="note-generate-status" id="noteGenerateStatus">AI akan membaca semua input terbaru lalu membuat catatan analisis otomatis.</div>
         </div>
 
         <button class="btn" id="analyzeBtn" disabled>Hitung & Analisis AI</button>
@@ -1722,6 +1731,105 @@ async function restoreLastAnalysis(){
   if(saved) renderSavedAnalysis(saved);
 }
 
+function buildNotesContext(){
+  const budget=calcBudget();
+  return {
+    saldo_pribadi_sekarang:+document.getElementById('cash')?.value||0,
+    uang_saku_per_minggu:+document.getElementById('allowance')?.value||0,
+    pendapatan_tambahan_min_per_minggu:+document.getElementById('incomeWeeklyMin')?.value||0,
+    pendapatan_tambahan_max_per_minggu:+document.getElementById('incomeWeeklyMax')?.value||0,
+    kebutuhan_per_minggu:+document.getElementById('needs')?.value||0,
+    dana_aman_otomatis:budget.auto_safe_fund||0,
+    kos_per_bulan:+document.getElementById('kos')?.value||0,
+    bayar_awal_hari:budget.initial_days||0,
+    sumber_pembayaran_kos:budget.kos_source_label||'',
+    kontribusi_pribadi_untuk_kos:budget.kos_self_contribution||0,
+    dana_orang_tua_untuk_kos:budget.kos_parent_contribution||0,
+    awal_periode_kos:budget.kos_cycle_start||null,
+    akhir_periode_kos:budget.kos_cycle_end||null,
+    tanggal_bayar_selanjutnya:budget.next_kos_payment_date||null,
+    saldo_pribadi_setelah_bayar_awal:budget.personal_available_balance||0,
+    surplus_aman_investasi_saat_ini:budget.safe_investment_amount||0,
+    profil_risiko:document.getElementById('risk')?.value||'medium',
+    mode_saham_1_lot:document.getElementById('stockLotMode')?.value||'auto',
+    budget_1_lot:+document.getElementById('stockLotBudget')?.value||0,
+    jumlah_rekomendasi_saham:+document.getElementById('stockRecommendationCount')?.value||5,
+    daftar_saham_manual:document.getElementById('stocks')?.value||'',
+    daftar_bank:document.getElementById('banks')?.value||'',
+    range_bunga_bank:getSelectedBankRateRanges(),
+    durasi_simulasi_bank_bulan:+document.getElementById('bankSimulationMonths')?.value||12,
+    compounding_bank_per_tahun:+document.getElementById('bankCompoundFrequency')?.value||12,
+    periode_simulasi_market_bulan:+document.getElementById('marketSimulationMonths')?.value||12,
+    skenario_market_rendah_pct_pa:+document.getElementById('marketBearGrowthPct')?.value||-10,
+    skenario_market_utama_pct_pa:+document.getElementById('marketBaseGrowthPct')?.value||8,
+    skenario_market_tinggi_pct_pa:+document.getElementById('marketBullGrowthPct')?.value||20
+  };
+}
+
+async function generateNotesAI(){
+  const btn=document.getElementById('generateNotesBtn');
+  const status=document.getElementById('noteGenerateStatus');
+  const notes=document.getElementById('notes');
+
+  if(!paired){
+    status.textContent='Hubungkan Ollama lokal dulu agar AI bisa membuat catatan.';
+    return;
+  }
+
+  const bridge=document.getElementById('bridge').value.replace(/\/$/,'');
+  const token=document.getElementById('token').value.trim();
+  const model=document.getElementById('model').value;
+  const context=buildNotesContext();
+
+  btn.disabled=true;
+  btn.textContent='⏳ Membuat...';
+  status.textContent='AI sedang membaca semua input dan menyusun catatan...';
+
+  const prompt=`Buat CATATAN analisis keuangan KosFlow berdasarkan JSON input berikut.
+
+Output HANYA 1 paragraf Bahasa Indonesia, maksimal 120 kata, tanpa markdown, tanpa bullet, tanpa JSON.
+
+Aturan:
+- Jangan hanya menyalin semua angka.
+- Rangkum kondisi dan prioritas yang paling penting.
+- Pisahkan saldo pribadi, uang saku, pendapatan tambahan, dan dana orang tua untuk kos.
+- Dana orang tua untuk kos bukan saldo pribadi dan bukan modal investasi.
+- Jika surplus aman investasi = 0, jelaskan bahwa belum ada dana investasi yang benar-benar tersedia saat ini.
+- Sesuaikan rekomendasi bank dengan range bunga pilihan.
+- Jika pencarian saham otomatis aktif, arahkan agar saham 1 lot sesuai budget serta memperhatikan dividen, likuiditas, dan risiko.
+- Simulasi crypto/saham adalah skenario, bukan prediksi.
+- Buat catatan yang cocok langsung dipakai sebagai instruksi analisis berikutnya.
+
+DATA:
+${JSON.stringify(context)}`;
+
+  try{
+    const rr=await fetch(bridge+'/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-KosFlow-Token':token},
+      body:JSON.stringify({model,prompt,temperature:.15})
+    });
+    const data=await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
+    if(!rr.ok) throw new Error(data.detail||data.ollama_error||data.error||`HTTP ${rr.status}`);
+    let text=(data.response||'').trim();
+    text=text.replace(/^```(?:text)?\s*/i,'').replace(/\s*```$/,'').trim();
+    if(text.startsWith('"')&&text.endsWith('"')){
+      try{text=JSON.parse(text)}catch(e){}
+    }
+    if(!text) throw new Error('AI tidak mengembalikan catatan.');
+
+    notes.value=text;
+    notes.dispatchEvent(new Event('input',{bubbles:true}));
+    status.textContent='Catatan AI berhasil dibuat dari input terbaru. Kamu tetap bisa mengeditnya.';
+    scheduleSave();
+  }catch(e){
+    status.textContent='Gagal membuat catatan AI: '+e.message;
+  }finally{
+    btn.disabled=false;
+    btn.textContent='✨ Generate Catatan AI';
+  }
+}
+
 async function analyze(){
   if(!paired) return;
   const btn = document.getElementById('analyzeBtn');
@@ -2013,6 +2121,7 @@ ${JSON.stringify(payload)}
 }
 
 document.getElementById('pairBtn').addEventListener('click', ()=>pair(false));
+document.getElementById('generateNotesBtn').addEventListener('click', generateNotesAI);
 document.getElementById('editPairBtn').addEventListener('click', editPairing);
 document.getElementById('analyzeBtn').addEventListener('click', analyze);
 document.getElementById('cash').addEventListener('input', e=>{
