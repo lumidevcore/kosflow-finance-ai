@@ -5,11 +5,14 @@ import asyncio
 import html
 import json
 import re
+import os
 
 import httpx
 
 BASE = Path(__file__).resolve().parent
 PUBLIC = BASE / "public"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 
 def nowiso():
@@ -253,7 +256,89 @@ BANK_DOMAINS = {
     "Bank Saqu": ["banksaqu.co.id"],
     "Bank Neo Commerce": ["bankneo.co.id", "bankneocommerce.co.id"],
     "Krom Bank": ["krom.id"],
+    "SeaBank": ["seabank.co.id"],
 }
+
+BANK_OFFICIAL_PAGES = {
+    "Bank Jago": [
+        "https://www.jago.com/id/jago/rates",
+    ],
+    "Bank Saqu": [
+        "https://banksaqu.co.id/blog/informasi-bunga-saku-nabung",
+        "https://banksaqu.co.id/products/deposito-reguler-10",
+        "https://banksaqu.co.id/blog/update-suku-bunga-deposito-reguler-mulai-1-november-2025",
+    ],
+    "Bank Neo Commerce": [
+        "https://www.bankneo.co.id/",
+    ],
+    "Krom Bank": [
+        "https://krom.id/produk/",
+        "https://krom.id/faq/",
+        "https://krom.id/pengumuman-penyesuaian-suku-bunga-deposito-krom-flex-dan-krom-max/",
+    ],
+    "SeaBank": [
+        "https://www.seabank.co.id/produk-layanan/konvensional",
+    ],
+}
+
+
+def _clean_html_text(body):
+    body = re.sub(r"(?is)<script[^>]*>.*?</script>", " ", body)
+    body = re.sub(r"(?is)<style[^>]*>.*?</style>", " ", body)
+    body = re.sub(r"(?is)<noscript[^>]*>.*?</noscript>", " ", body)
+    text = re.sub(r"(?s)<[^>]+>", " ", body)
+    text = html.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _extract_interest_snippet(text, max_len=1600):
+    if not text:
+        return ""
+    lowered = text.lower()
+    keys = [
+        "suku bunga",
+        "bunga tabungan",
+        "bunga deposito",
+        "deposito",
+        "tabungan",
+        "minimum penempatan",
+        "minimum setoran",
+        "p.a.",
+        "per annum",
+    ]
+    positions = [lowered.find(k) for k in keys if lowered.find(k) >= 0]
+    start = max(0, (min(positions) if positions else 0) - 180)
+    return text[start:start + max_len].strip()
+
+
+async def fetch_official_bank_pages(bank_name):
+    out = []
+    for url in BANK_OFFICIAL_PAGES.get(bank_name, []):
+        try:
+            body = await get_text(url, 14)
+            text = _clean_html_text(body)
+            snippet = _extract_interest_snippet(text)
+            if not snippet:
+                continue
+            title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", body)
+            title = (
+                _clean_html_text(title_match.group(1))
+                if title_match
+                else f"{bank_name} official rates"
+            )
+            out.append({
+                "category": "Bank digital • " + bank_name,
+                "title": title[:180],
+                "snippet": snippet,
+                "url": url,
+                "source_type": "official-direct",
+                "official_hint": True,
+            })
+        except Exception:
+            pass
+    return out
+
 
 async def multi_search(query, category, domains=None, max_results=4):
     """
@@ -286,42 +371,66 @@ async def multi_search(query, category, domains=None, max_results=4):
     return out
 
 
-async def bank_search(names_text):
-    names = [x.strip() for x in names_text.split(",") if x.strip()][:8]
+async def bank_search(names_text, rate_ranges_text=''):
+    names = [x.strip() for x in names_text.split(",") if x.strip()][:10]
+    selected_ranges = [x.strip() for x in rate_ranges_text.split(",") if x.strip()]
     result = []
 
     for name in names:
         domains = BANK_DOMAINS.get(name, [])
+        bank_items = []
+        seen = set()
+
+        # 1) Direct fetch from known official pages first.
+        for item in await fetch_official_bank_pages(name):
+            key = item.get("url") or item.get("title")
+            if key in seen:
+                continue
+            seen.add(key)
+            bank_items.append(item)
+
+        # 2) Internet search fallback / expansion.
         queries = [
             f'"{name}" bunga tabungan terbaru',
             f'"{name}" bunga deposito terbaru',
             f'"{name}" suku bunga tabungan deposito minimum setoran',
+            f'"{name}" rates bunga simpanan terbaru',
         ]
-        bank_items = []
-        seen = set()
+        for rr in selected_ranges:
+            queries.append(f'"{name}" bunga {rr}% tabungan deposito terbaru')
 
         for q in queries:
             items = await multi_search(
                 q,
                 "Bank digital • " + name,
                 domains=domains,
-                max_results=3,
+                max_results=4,
             )
             for item in items:
                 key = item.get("url") or item.get("title")
                 if key in seen:
                     continue
                 seen.add(key)
+                item.setdefault("source_type", "web-search")
                 bank_items.append(item)
 
-        result.extend(bank_items[:5])
+        # Keep official results first, then fallback search results.
+        bank_items.sort(
+            key=lambda x: (
+                0 if x.get("official_hint") else 1,
+                0 if x.get("source_type") == "official-direct" else 1,
+            )
+        )
+
+        result.extend(bank_items[:6])
 
     return {
         "fetched_at": nowiso(),
-        "search_mode": "internet-web-search",
+        "search_mode": "official-direct+internet-web-search",
+        "banks_requested": names,
+        "selected_interest_ranges": selected_ranges,
         "items": result,
     }
-
 
 async def fund_search():
     searches = [
@@ -364,18 +473,81 @@ async def fund_search():
     }
 
 
-async def combined_research(names_text, symbols_text):
+
+IDX_CANDIDATE_UNIVERSE = [
+    "BBCA","BBRI","BMRI","BBNI","TLKM","ASII","ICBP","INDF","UNVR","PGAS",
+    "ANTM","PTBA","ADRO","MDKA","BRIS","EXCL","ISAT","GOTO","BUKA","ACES",
+    "CPIN","JPFA","MYOR","KLBF","SIDO","ERAA","MAPI","ESSA","INKP","TKIM",
+    "TOWR","MTEL","SMGR","INTP","JSMR","AKRA","MEDC","HRUM","INDY","SCMA",
+    "EMTK","AUTO","LSIP","AALI","TBIG","MIKA","HEAL","SRTG","WIIM","ELSA"
+]
+
+async def discover_affordable_stocks(max_lot_budget, limit=5):
+    try:
+        budget = float(max_lot_budget or 0)
+    except Exception:
+        budget = 0
+    limit = max(1, min(int(limit or 5), 10))
+
+    items = []
+    # Query a curated, liquid-ish IDX universe using existing quote function.
+    for symbol in IDX_CANDIDATE_UNIVERSE:
+        try:
+            try:
+                item = await google_finance(symbol)
+            except Exception:
+                item = await yahoo_finance(symbol)
+            price = item.get("price")
+            if price is None:
+                continue
+            lot_cost = float(price) * 100.0
+            item["lot_cost"] = lot_cost
+            item["lot_size"] = 100
+            if budget <= 0 or lot_cost <= budget:
+                items.append(item)
+        except Exception:
+            continue
+
+    # Prefer prices closest to but not above budget, then milder negative/positive move.
+    items.sort(
+        key=lambda x: (
+            -(x.get("lot_cost") or 0),
+            abs(float(x.get("change_percent") or 0)),
+        )
+    )
+    return items[:limit]
+
+
+async def combined_research(names_text, symbols_text, rate_ranges_text='', stock_lot_mode='manual', stock_lot_budget=0, stock_recommendation_count=5):
     """
     Search the public web each time analysis is requested.
     The local Ollama receives these fresh search results as context.
     """
-    banks = await bank_search(names_text)
+    banks = await bank_search(names_text, rate_ranges_text)
     funds = await fund_search()
-    stocks = await stock_quotes(symbols_text)
+    if stock_lot_mode == "auto":
+        candidates = await discover_affordable_stocks(stock_lot_budget, stock_recommendation_count)
+        stocks = {
+            "fetched_at": nowiso(),
+            "mode": "auto-1-lot",
+            "lot_size": 100,
+            "max_lot_budget": float(stock_lot_budget or 0),
+            "candidates": candidates,
+            "items": candidates,
+            "note": "Auto-discovered IDX candidates whose estimated 1 lot cost fits the selected budget."
+        }
+    else:
+        stocks = await stock_quotes(symbols_text)
+        for item in stocks.get("items", []):
+            if item.get("price") is not None:
+                item["lot_size"] = 100
+                item["lot_cost"] = float(item["price"]) * 100.0
+        stocks["mode"] = "manual
     crypto = await crypto_snapshot()
 
     return {
         "fetched_at": nowiso(),
+        "research_mode": "official bank pages + internet search + market APIs",
         "crypto": crypto,
         "stocks": stocks,
         "banks": banks,
@@ -416,6 +588,109 @@ async def send_file(send, path, content_type):
     await send({"type": "http.response.body", "body": body})
 
 
+def supabase_configured():
+    return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+
+
+def sb_headers(prefer=None):
+    h = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+    }
+    if prefer:
+        h["Prefer"] = prefer
+    return h
+
+
+async def sb_request(method, table, params=None, body=None, prefer=None):
+    if not supabase_configured():
+        return None
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as c:
+        r = await c.request(method, url, params=params, headers=sb_headers(prefer), json=body)
+        r.raise_for_status()
+        if not r.content:
+            return []
+        return r.json()
+
+
+async def ensure_device(browser_device_id):
+    rows = await sb_request("GET", "devices", {"browser_device_id": f"eq.{browser_device_id}", "select":"id,browser_device_id", "limit":"1"})
+    if rows:
+        return rows[0]
+    rows = await sb_request("POST", "devices", body={"browser_device_id":browser_device_id}, prefer="return=representation")
+    return rows[0]
+
+
+async def read_json_body(receive):
+    chunks=[]
+    while True:
+        msg=await receive()
+        if msg.get("type")!="http.request":
+            break
+        chunks.append(msg.get("body",b""))
+        if not msg.get("more_body",False):
+            break
+    raw=b"".join(chunks)
+    return json.loads(raw.decode("utf-8")) if raw else {}
+
+
+async def load_state(device_id):
+    if not supabase_configured():
+        return {"cloud_configured":False,"state":None}
+    dev=await ensure_device(device_id)
+    did=dev["id"]
+    pair=await sb_request("GET","ollama_pairings",{"device_id":f"eq.{did}","select":"bridge_url,model_name,token_ciphertext,token_iv,updated_at","limit":"1"})
+    fin=await sb_request("GET","finance_settings",{"device_id":f"eq.{did}","select":"*","limit":"1"})
+    settings=None
+    if fin:
+        f=fin[0]
+        settings={
+            "cash":f.get("cash"),"allowance":f.get("allowance"),"monthly_kos":f.get("monthly_kos"),"weeks":f.get("weeks"),"buffer":f.get("buffer"),"weekly_needs":f.get("weekly_needs"),"risk":f.get("risk"),"stocks":f.get("stocks"),"stock_lot_mode":f.get("stock_lot_mode") or "auto","stock_lot_budget":f.get("stock_lot_budget") or 100000,"stock_recommendation_count":f.get("stock_recommendation_count") or 5,"banks":f.get("banks"),"bank_interest_ranges":f.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":f.get("notes"),"kos_source":f.get("kos_source"),"bridge_url":pair[0].get("bridge_url") if pair else None,"model_name":pair[0].get("model_name") if pair else None,
+        }
+    return {"cloud_configured":True,"state":{"settings":settings,"pairing":pair[0] if pair else None}}
+
+
+async def save_state(payload):
+    if not supabase_configured():
+        return {"cloud_saved":False,"reason":"supabase_not_configured"}
+    dev=await ensure_device(payload["device_id"]); did=dev["id"]
+    pairing=payload.get("pairing") or {}; settings=payload.get("settings") or {}
+    pair_body={"device_id":did,"bridge_url":pairing.get("bridge_url"),"model_name":pairing.get("model_name"),"token_ciphertext":pairing.get("token_ciphertext"),"token_iv":pairing.get("token_iv")}
+    await sb_request("POST","ollama_pairings",{"on_conflict":"device_id"},pair_body,"resolution=merge-duplicates,return=minimal")
+    fin_body={"device_id":did,"cash":settings.get("cash"),"allowance":settings.get("allowance"),"monthly_kos":settings.get("monthly_kos"),"weeks":settings.get("weeks"),"buffer":settings.get("buffer"),"weekly_needs":settings.get("weekly_needs"),"risk":settings.get("risk"),"stocks":settings.get("stocks"),"stock_lot_mode":settings.get("stock_lot_mode") or "auto","stock_lot_budget":settings.get("stock_lot_budget") or 100000,"stock_recommendation_count":settings.get("stock_recommendation_count") or 5,"banks":settings.get("banks"),"bank_interest_ranges":settings.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":settings.get("notes"),"kos_source":settings.get("kos_source")}
+    await sb_request("POST","finance_settings",{"on_conflict":"device_id"},fin_body,"resolution=merge-duplicates,return=minimal")
+    return {"cloud_saved":True}
+
+
+async def save_analysis(payload):
+    if not supabase_configured():
+        return {"cloud_saved":False}
+    dev=await ensure_device(payload["device_id"]); did=dev["id"]
+    body={"device_id":did,"model_name":payload.get("model_name"),"input_json":payload.get("input_json"),"result_json":payload.get("result_json"),"ai_json":payload.get("ai_json"),"ai_raw":payload.get("ai_raw")}
+    rows=await sb_request("POST","analyses",body=body,prefer="return=representation"); aid=rows[0]["id"]
+    market=payload.get("market") or {}
+    snaps=[]
+    for typ,obj in [("crypto",market.get("crypto") or {}),("stock",market.get("stocks") or {})]:
+        for x in obj.get("items",[]):
+            snaps.append({"analysis_id":aid,"asset_type":typ,"symbol":x.get("symbol"),"price":x.get("price_idr") if typ=="crypto" else x.get("price"),"change_percent":x.get("change_24h") if typ=="crypto" else x.get("change_percent"),"source":x.get("source"),"source_url":x.get("url"),"market_timestamp":x.get("market_timestamp"),"raw":x})
+    if snaps: await sb_request("POST","market_snapshots",body=snaps,prefer="return=minimal")
+    research=payload.get("research") or {}; srcs=[]
+    for cat,obj in [("bank",research.get("banks") or {}),("fund",research.get("funds") or {})]:
+        for x in obj.get("items",[]):
+            srcs.append({"analysis_id":aid,"category":cat,"entity_name":x.get("category"),"title":x.get("title"),"snippet":x.get("snippet"),"source_url":x.get("url"),"official":bool(x.get("official_hint")),"raw":x})
+    if srcs: await sb_request("POST","research_sources",body=srcs,prefer="return=minimal")
+    return {"cloud_saved":True,"analysis_id":aid}
+
+
+async def list_analyses(device_id, limit=1):
+    if not supabase_configured(): return {"cloud_configured":False,"items":[]}
+    dev=await ensure_device(device_id)
+    rows=await sb_request("GET","analyses",{"device_id":f"eq.{dev['id']}","select":"id,created_at,model_name,result_json,ai_json,ai_raw","order":"created_at.desc","limit":str(max(1,min(limit,20)))})
+    return {"cloud_configured":True,"items":rows or []}
+
+
 class KosFlowASGI:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -427,13 +702,8 @@ class KosFlowASGI:
             scope.get("query_string", b"").decode("utf-8", "ignore")
         )
 
-        if method != "GET":
-            return await send_json(
-                send, {"error": "method not allowed"}, 405
-            )
-
         try:
-            if path == "/api/health":
+            if method == "GET" and path == "/api/health":
                 return await send_json(
                     send,
                     {
@@ -443,10 +713,34 @@ class KosFlowASGI:
                     },
                 )
 
-            if path == "/api/crypto-snapshot":
+            if method == "GET" and path == "/api/cloud/status":
+                return await send_json(send,{"configured":supabase_configured()})
+
+            if method == "GET" and path == "/api/state":
+                device_id=(query.get("device_id") or [""])[0]
+                if not device_id: return await send_json(send,{"error":"device_id required"},400)
+                return await send_json(send,await load_state(device_id))
+
+            if method == "POST" and path == "/api/state":
+                payload=await read_json_body(receive)
+                if not payload.get("device_id"): return await send_json(send,{"error":"device_id required"},400)
+                return await send_json(send,await save_state(payload))
+
+            if method == "GET" and path == "/api/analyses":
+                device_id=(query.get("device_id") or [""])[0]
+                limit=int((query.get("limit") or ["1"])[0])
+                if not device_id: return await send_json(send,{"error":"device_id required"},400)
+                return await send_json(send,await list_analyses(device_id,limit))
+
+            if method == "POST" and path == "/api/analyses":
+                payload=await read_json_body(receive)
+                if not payload.get("device_id"): return await send_json(send,{"error":"device_id required"},400)
+                return await send_json(send,await save_analysis(payload))
+
+            if method == "GET" and path == "/api/crypto-snapshot":
                 return await send_json(send, await crypto_snapshot())
 
-            if path == "/api/stocks":
+            if method == "GET" and path == "/api/stocks":
                 symbols = query.get(
                     "symbols", ["BBCA,BBRI,BMRI,TLKM"]
                 )[0]
@@ -454,7 +748,7 @@ class KosFlowASGI:
                     send, await stock_quotes(symbols)
                 )
 
-            if path == "/api/banks":
+            if method == "GET" and path == "/api/banks":
                 names = query.get(
                     "names",
                     [
@@ -466,24 +760,35 @@ class KosFlowASGI:
                     send, await bank_search(names)
                 )
 
-            if path == "/api/funds":
+            if method == "GET" and path == "/api/funds":
                 return await send_json(send, await fund_search())
 
-            if path == "/api/research":
+            if method == "GET" and path == "/api/research":
                 names = query.get(
                     "banks",
-                    ["Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank"],
+                    ["Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank,SeaBank"],
                 )[0]
                 symbols = query.get(
                     "stocks",
                     ["BBCA,BBRI,BMRI,TLKM"],
                 )[0]
+                ranges = query.get("bank_rate_ranges", [""])[0]
+                stock_lot_mode = query.get("stock_lot_mode", ["manual"])[0]
+                stock_lot_budget = query.get("stock_lot_budget", ["0"])[0]
+                stock_recommendation_count = query.get("stock_recommendation_count", ["5"])[0]
                 return await send_json(
                     send,
-                    await combined_research(names, symbols),
+                    await combined_research(
+                        names,
+                        symbols,
+                        ranges,
+                        stock_lot_mode,
+                        stock_lot_budget,
+                        stock_recommendation_count,
+                    ),
                 )
 
-            if path in ("/", "/index.html"):
+            if method == "GET" and path in ("/", "/index.html"):
                 return await send_file(
                     send,
                     PUBLIC / "index.html",
@@ -491,7 +796,7 @@ class KosFlowASGI:
                 )
 
             # Optional static files under /public/*
-            if path.startswith("/public/"):
+            if method == "GET" and path.startswith("/public/"):
                 relative = path[len("/public/") :].replace("..", "")
                 file_path = PUBLIC / relative
                 suffix = file_path.suffix.lower()

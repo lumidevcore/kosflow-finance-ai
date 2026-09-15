@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.3</title>
+<title>KosFlow Finance v10.7</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -182,6 +182,71 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
   color:#64748b;font-size:13px;line-height:1.65
 }
 
+.interest-range-box{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.interest-chip{
+  position:relative;
+  display:block;
+  cursor:pointer;
+}
+.interest-chip input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.interest-chip span{
+  min-height:72px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px;
+  padding:12px 13px;
+  border-radius:18px;
+  border:1px solid rgba(58,85,129,.10);
+  background:linear-gradient(180deg,#fff,#f7faff);
+  color:#405674;
+  box-shadow:var(--soft-shadow);
+  transition:.2s ease;
+}
+.interest-chip span b{
+  color:#1f3356;
+  font-size:14px;
+}
+.interest-chip span small{
+  color:#7889a3;
+  font-size:11.5px;
+}
+.interest-chip input:checked + span{
+  color:#304fb1;
+  border-color:rgba(85,104,255,.30);
+  background:linear-gradient(135deg,#eef2ff,#e8f8ff);
+  box-shadow:0 10px 24px rgba(85,104,255,.12);
+}
+.interest-chip input:checked + span:after{
+  content:"✓";
+  position:absolute;
+  top:9px;
+  right:12px;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:white;
+  font-size:12px;
+  font-weight:900;
+}
+.range-help{
+  margin-top:8px;
+  color:#7b8aa5;
+  font-size:12px;
+  line-height:1.5;
+}
+
 .main{display:flex;flex-direction:column;gap:18px}
 .hero{padding:24px;display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
 .eyebrow{
@@ -273,7 +338,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
   .hero{grid-template-columns:1fr}
 }
 @media (max-width: 860px){
-  .grid2,.hero-grid,.grid3,.grid4,.cards-grid{grid-template-columns:1fr}
+  .grid2,.hero-grid,.grid3,.grid4,.cards-grid,.interest-range-box{grid-template-columns:1fr}
   .big{font-size:42px}
   .market-card{width:280px}
 }
@@ -403,7 +468,11 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           </div>
         </div>
 
-        <button class="btn secondary" id="pairBtn">Hubungkan Ollama Lokal</button>
+        <div class="grid2" style="margin-bottom:14px">
+          <button class="btn secondary" id="pairBtn">Hubungkan Ollama Lokal</button>
+          <button class="btn secondary hidden" id="editPairBtn">Edit Pairing</button>
+        </div>
+        <div class="note" id="saveStatus" style="margin-bottom:14px">Penyimpanan: menunggu sinkronisasi.</div>
 
         <div class="field" style="margin-top:14px">
           <label>Model Ollama</label>
@@ -467,8 +536,55 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         </div>
 
         <div class="field">
+          <label>Pencarian saham 1 lot</label>
+          <select id="stockLotMode">
+            <option value="manual">Gunakan daftar saham di atas</option>
+            <option value="auto" selected>AI cari saham IDX yang 1 lot-nya sesuai dana</option>
+          </select>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Maksimum dana untuk 1 lot</label>
+            <input id="stockLotBudget" type="number" value="100000" min="1000" step="1000" />
+          </div>
+          <div class="field">
+            <label>Jumlah rekomendasi saham</label>
+            <select id="stockRecommendationCount">
+              <option value="3">3 saham</option>
+              <option value="5" selected>5 saham</option>
+              <option value="8">8 saham</option>
+              <option value="10">10 saham</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="note" style="margin-bottom:14px">
+          1 lot saham Indonesia = <b>100 lembar</b>. Saat mode otomatis aktif, AI akan mencari saham IDX yang estimasi biaya 1 lot-nya tidak melebihi batas dana ini, lalu membandingkan kandidat yang paling sesuai.
+        </div>
+
+        <div class="field">
           <label>Bank digital</label>
-          <input id="banks" value="Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank" />
+          <input id="banks" value="Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank,SeaBank" />
+        </div>
+
+        <div class="field">
+          <label>Range bunga bank yang diminati</label>
+          <div class="interest-range-box" id="bankInterestRanges">
+            <label class="interest-chip">
+              <input type="checkbox" name="bankRateRange" value="0.5-4" checked />
+              <span><b>0,5% – 4%</b><small>Lebih konservatif</small></span>
+            </label>
+            <label class="interest-chip">
+              <input type="checkbox" name="bankRateRange" value="4-6" checked />
+              <span><b>4% – 6%</b><small>Menengah</small></span>
+            </label>
+            <label class="interest-chip">
+              <input type="checkbox" name="bankRateRange" value="6-10" />
+              <span><b>6% – 10%</b><small>Bunga lebih tinggi</small></span>
+            </label>
+          </div>
+          <div class="range-help">Bisa pilih satu, dua, atau semua range sekaligus. AI akan memprioritaskan produk bank yang bunga terbarunya masuk ke range pilihanmu.</div>
         </div>
 
         <div class="field">
@@ -526,6 +642,14 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         <div class="grid3" id="snapGrid"></div>
       </section>
 
+      <section class="card section hidden" id="stockCandidatesWrap">
+        <div class="sec-head">
+          <h3>Rekomendasi Saham 1 Lot</h3>
+          <span id="stockCandidateMeta">—</span>
+        </div>
+        <div class="grid4" id="stockCandidates"></div>
+      </section>
+
       <section class="card section hidden" id="researchWrap">
         <div class="sec-head">
           <h3>Data Internet & Referensi</h3>
@@ -554,6 +678,141 @@ let usdIdr = 16000;
 let last = {};
 let ws = null;
 let paired = false;
+let saveTimer = null;
+const STORAGE_KEY = 'kosflow_v105_state';
+const ANALYSIS_KEY = 'kosflow_v105_last_analysis';
+const DEVICE_KEY = 'kosflow_device_id';
+const CRYPTO_KEY = 'kosflow_pair_crypto_key';
+
+function getDeviceId(){
+  let id = localStorage.getItem(DEVICE_KEY);
+  if(!id){
+    id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+    localStorage.setItem(DEVICE_KEY,id);
+  }
+  return id;
+}
+function bytesToB64(bytes){return btoa(String.fromCharCode(...bytes))}
+function b64ToBytes(s){return Uint8Array.from(atob(s), c=>c.charCodeAt(0))}
+async function getCryptoKey(){
+  let raw = localStorage.getItem(CRYPTO_KEY);
+  if(!raw){
+    const b = crypto.getRandomValues(new Uint8Array(32));
+    raw = bytesToB64(b);
+    localStorage.setItem(CRYPTO_KEY,raw);
+  }
+  return crypto.subtle.importKey('raw',b64ToBytes(raw),{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function encryptToken(token){
+  if(!token) return {ciphertext:'',iv:''};
+  const key=await getCryptoKey();
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=new TextEncoder().encode(token);
+  const out=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc));
+  return {ciphertext:bytesToB64(out),iv:bytesToB64(iv)};
+}
+async function decryptToken(ciphertext,iv){
+  if(!ciphertext || !iv) return '';
+  try{
+    const key=await getCryptoKey();
+    const out=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(iv)},key,b64ToBytes(ciphertext));
+    return new TextDecoder().decode(out);
+  }catch(e){return ''}
+}
+function getStockDiscoverySettings(){
+  return {
+    stock_lot_mode: document.getElementById('stockLotMode')?.value || 'auto',
+    stock_lot_budget: +(document.getElementById('stockLotBudget')?.value || 0),
+    stock_recommendation_count: +(document.getElementById('stockRecommendationCount')?.value || 5)
+  };
+}
+
+function getSelectedBankRateRanges(){
+  return [...document.querySelectorAll('input[name="bankRateRange"]:checked')].map(x=>x.value);
+}
+function applyBankRateRanges(ranges){
+  const wanted = Array.isArray(ranges) && ranges.length ? ranges : ['0.5-4','4-6'];
+  document.querySelectorAll('input[name="bankRateRange"]').forEach(cb=>{
+    cb.checked = wanted.includes(cb.value);
+  });
+}
+function gatherSettings(){
+  return {
+    bridge_url:document.getElementById('bridge').value.trim(),
+    model_name:document.getElementById('model').value,
+    cash:+document.getElementById('cash').value||0,
+    allowance:+document.getElementById('allowance').value||0,
+    monthly_kos:+document.getElementById('kos').value||0,
+    weeks:+document.getElementById('weeks').value||1,
+    buffer:+document.getElementById('buffer').value||0,
+    weekly_needs:+document.getElementById('needs').value||0,
+    risk:document.getElementById('risk').value,
+    stocks:document.getElementById('stocks').value,
+    ...getStockDiscoverySettings(),
+    banks:document.getElementById('banks').value,
+    bank_interest_ranges:getSelectedBankRateRanges(),
+    notes:document.getElementById('notes').value,
+    kos_source:document.getElementById('kosSource').value
+  };
+}
+function applySettings(s){
+  if(!s) return;
+  const map={bridge:'bridge_url',cash:'cash',allowance:'allowance',kos:'monthly_kos',weeks:'weeks',buffer:'buffer',needs:'weekly_needs',risk:'risk',stocks:'stocks',banks:'banks',notes:'notes',kosSource:'kos_source'};
+  for(const [id,key] of Object.entries(map)){
+    const el=document.getElementById(id); if(el && s[key]!==undefined && s[key]!==null) el.value=s[key];
+  }
+  applyBankRateRanges(s.bank_interest_ranges);
+}
+async function persistState(show=false){
+  try{
+    const settings=gatherSettings();
+    const token=document.getElementById('token').value.trim();
+    const enc=await encryptToken(token);
+    const local={settings,pairing:{token_ciphertext:enc.ciphertext,token_iv:enc.iv}};
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(local));
+    const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:getDeviceId(),settings,pairing:{bridge_url:settings.bridge_url,model_name:settings.model_name,token_ciphertext:enc.ciphertext,token_iv:enc.iv}})});
+    const d=await r.json().catch(()=>({}));
+    document.getElementById('saveStatus').textContent = r.ok && d.cloud_saved ? 'Penyimpanan: tersimpan di Supabase + browser lokal.' : 'Penyimpanan: tersimpan lokal. Supabase belum dikonfigurasi/tersedia.';
+  }catch(e){
+    document.getElementById('saveStatus').textContent='Penyimpanan: lokal aktif, sinkronisasi Supabase gagal.';
+    if(show) console.warn(e);
+  }
+}
+function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>persistState(false),800)}
+async function restoreState(){
+  let local=null;
+  try{local=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')}catch(e){}
+  if(local?.settings) applySettings(local.settings);
+  if(local?.pairing){
+    const t=await decryptToken(local.pairing.token_ciphertext,local.pairing.token_iv);
+    if(t) document.getElementById('token').value=t;
+  }
+  try{
+    const r=await fetch('/api/state?device_id='+encodeURIComponent(getDeviceId()),{cache:'no-store'});
+    const d=await r.json();
+    if(r.ok && d.state){
+      if(d.state.settings) applySettings(d.state.settings);
+      if(d.state.pairing){
+        if(d.state.pairing.bridge_url) document.getElementById('bridge').value=d.state.pairing.bridge_url;
+        const t=await decryptToken(d.state.pairing.token_ciphertext,d.state.pairing.token_iv);
+        if(t) document.getElementById('token').value=t;
+      }
+      document.getElementById('saveStatus').textContent=d.cloud_configured?'Penyimpanan: data dipulihkan dari Supabase.':'Penyimpanan: data dipulihkan dari browser lokal.';
+    }
+  }catch(e){}
+}
+function lockPairing(locked){
+  document.getElementById('bridge').readOnly=locked;
+  document.getElementById('token').readOnly=locked;
+  document.getElementById('editPairBtn').classList.toggle('hidden',!locked);
+}
+function editPairing(){
+  paired=false; lockPairing(false);
+  document.getElementById('pairBtn').textContent='Simpan & Hubungkan Ulang';
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('topStatus').textContent='● Pairing siap diedit';
+  document.getElementById('token').focus();
+}
 
 function stripCodeFence(s){
   return (s||'').replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
@@ -781,7 +1040,11 @@ window.addEventListener('pagehide', ()=>{
 });
 
 window.addEventListener('pageshow', ()=>{
-  if(!document.hidden) startCrypto();
+  if(!document.hidden) document.querySelectorAll('input[name="bankRateRange"]').forEach(cb=>{
+  cb.addEventListener('change', scheduleSave);
+});
+
+startCrypto();
 });
 
 document.addEventListener('visibilitychange', ()=>{
@@ -791,11 +1054,15 @@ document.addEventListener('visibilitychange', ()=>{
       ws = null;
     }
   }else{
-    startCrypto();
+    document.querySelectorAll('input[name="bankRateRange"]').forEach(cb=>{
+  cb.addEventListener('change', scheduleSave);
+});
+
+startCrypto();
   }
 });
 
-async function pair(){
+async function pair(silent=false){
   const url = document.getElementById('bridge').value.replace(/\/$/,'');
   const token = document.getElementById('token').value.trim();
   const btn = document.getElementById('pairBtn');
@@ -806,35 +1073,35 @@ async function pair(){
     if(!h.ok) throw new Error('Bridge tidak merespons');
     const r = await fetch(url+'/models',{headers:{'X-KosFlow-Token':token}});
     const d = await r.json();
-    if(!r.ok) throw new Error(d.error || 'Token salah');
+    if(!r.ok) throw new Error(d.error || 'Pairing token sudah berubah / tidak valid');
     const sel = document.getElementById('model');
+    const savedModel = sel.value;
     sel.innerHTML = '';
     (d.models||[]).forEach(m=>{
-      const o = document.createElement('option');
-      o.value = m;
-      o.textContent = m;
-      sel.appendChild(o);
+      const o = document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o);
     });
-    const pref = (d.models||[]).find(x=>x.includes('Qwen3.5-9B')) || (d.models||[])[0];
+    const pref = (d.models||[]).includes(savedModel) ? savedModel : ((d.models||[]).find(x=>x.includes('Qwen3.5-9B')) || (d.models||[])[0]);
     if(pref) sel.value = pref;
     paired = true;
+    lockPairing(true);
     btn.textContent = 'Ollama Terhubung ✓';
     document.getElementById('topStatus').textContent = '● Ollama lokal terhubung';
     document.getElementById('analyzeBtn').disabled = false;
+    await persistState(false);
   }catch(e){
-    alert(e.message);
-    btn.textContent = 'Hubungkan Ollama Lokal';
-    document.getElementById('topStatus').textContent = '● Gagal terhubung';
-  }finally{
-    btn.disabled = false;
-  }
+    paired=false; lockPairing(false);
+    btn.textContent = 'Hubungkan / Perbarui Pairing';
+    document.getElementById('topStatus').textContent = '● Ollama lokal belum terhubung';
+    document.getElementById('analyzeBtn').disabled = true;
+    if(!silent) alert(e.message + '\n\nJika CMD bridge baru dijalankan ulang, klik Edit Pairing lalu masukkan token terbaru.');
+  }finally{btn.disabled=false}
 }
 
 const stepDefs = [
   ['budget','Menghitung uang & kos','Menghitung saldo, kos, kebutuhan, dan dana aman'],
   ['crypto','Mengunci snapshot crypto','Mengambil snapshot baru khusus analisis'],
   ['stocks','Mengambil saham IDX','Mencari quote saham Indonesia'],
-  ['banks','Mencari bank digital','Mencari bunga Bank Jago, Saqu, Neo, Krom'],
+  ['banks','Mencari bank digital','Mencari bunga Jago, Saqu, Neo, Krom, SeaBank'],
   ['funds','Mencari reksadana','Mencari data reksadana terbaru'],
   ['match','Mencocokkan data','Menyusun data terverifikasi untuk Ollama'],
   ['ollama','Ollama menganalisis','Mengirim data ke Ollama lokal di laptop'],
@@ -924,6 +1191,38 @@ function calcBudget(){
   };
 }
 
+function renderSavedAnalysis(saved){
+  if(!saved || !saved.budget) return;
+  const {budget,crypto,stocks,banks,funds,parsed,raw,model}=saved;
+  document.getElementById('cashAfter').textContent=idr(budget.cash_after_initial_kos);
+  document.getElementById('heroSub').textContent=`${budget.initial_days} hari dibayar • sisa kos ${idr(budget.remaining_kos)} • dana aman ${idr(budget.buffer)}`;
+  document.getElementById('payKos').textContent=idr(budget.initial_kos_payment);
+  document.getElementById('remainingKos').textContent=idr(budget.remaining_kos);
+  document.getElementById('apps').textContent=`${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
+  document.getElementById('safe').textContent=idr(budget.safe_investment_amount);
+  document.getElementById('kosSourceView').textContent=budget.kos_source_label||'-';
+  document.getElementById('snapTime').textContent=crypto?.fetched_at||'—';
+  document.getElementById('snapGrid').innerHTML=(crypto?.items||[]).map(x=>`<div class="snap"><b>${x.symbol} snapshot</b><small>${idr(x.price_idr||0)}</small><small>24j ${Number(x.change_24h||0).toFixed(2)}%</small><small>${x.source||''}</small></div>`).join('');
+  const refs=[...(stocks?.items||[]),...(banks?.items||[]),...(funds?.items||[])];
+  document.getElementById('research').innerHTML=refs.map(x=>`<div class="source"><b>${x.symbol||x.category||'Sumber'}${x.title?' • '+x.title:''}</b><small>${x.snippet||(x.price!=null?idr(x.price):'')}</small><small>${x.source||x.url||''}</small></div>`).join('');
+  if(parsed) renderAnalysisCardsFromJSON(parsed,raw||''); else renderFallbackCards(raw||'',budget);
+  document.getElementById('modelUsed').textContent=model||'';
+  document.getElementById('placeholder').classList.add('hidden');
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('researchWrap').classList.remove('hidden');
+  document.getElementById('aiWrap').classList.remove('hidden');
+}
+async function restoreLastAnalysis(){
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(ANALYSIS_KEY)||'null')}catch(e){}
+  try{
+    const r=await fetch('/api/analyses?device_id='+encodeURIComponent(getDeviceId())+'&limit=1',{cache:'no-store'});
+    const d=await r.json();
+    if(r.ok && d.items?.length) saved=d.items[0].result_json||saved;
+  }catch(e){}
+  if(saved) renderSavedAnalysis(saved);
+}
+
 async function analyze(){
   if(!paired) return;
   const btn = document.getElementById('analyzeBtn');
@@ -931,6 +1230,7 @@ async function analyze(){
   document.getElementById('placeholder').classList.add('hidden');
   document.getElementById('progress').classList.remove('hidden');
   document.getElementById('results').classList.add('hidden');
+  document.getElementById('stockCandidatesWrap').classList.add('hidden');
   document.getElementById('researchWrap').classList.add('hidden');
   document.getElementById('aiWrap').classList.add('hidden');
   renderSteps();
@@ -943,13 +1243,21 @@ async function analyze(){
     const crypto = await (await fetch('/api/crypto-snapshot',{cache:'no-store'})).json();
 
     step('stocks', 38, 'Mencari saham IDX dan sumber pasar di internet');
-    step('banks', 52, 'Mencari Bank Jago, Saqu, Neo, dan Krom di web internet');
+    step('banks', 52, 'Mencari Jago, Saqu, Neo, Krom, dan SeaBank di web internet');
     step('funds', 66, 'Mencari reksadana dan performa terbaru di web internet');
 
     const researchUrl = '/api/research?banks='
       + encodeURIComponent(document.getElementById('banks').value)
       + '&stocks='
-      + encodeURIComponent(document.getElementById('stocks').value);
+      + encodeURIComponent(document.getElementById('stocks').value)
+      + '&stock_lot_mode='
+      + encodeURIComponent(document.getElementById('stockLotMode').value)
+      + '&stock_lot_budget='
+      + encodeURIComponent(document.getElementById('stockLotBudget').value)
+      + '&stock_recommendation_count='
+      + encodeURIComponent(document.getElementById('stockRecommendationCount').value)
+      + '&bank_rate_ranges='
+      + encodeURIComponent(getSelectedBankRateRanges().join(','));
 
     const researchPack = await (await fetch(researchUrl,{cache:'no-store'})).json();
     const stocks = researchPack.stocks || {items:[]};
@@ -966,6 +1274,10 @@ async function analyze(){
       funds,
       internet_research_timestamp: researchPack.fetched_at || null,
       risk: document.getElementById('risk').value,
+      stock_lot_mode: document.getElementById('stockLotMode').value,
+      stock_lot_budget: +document.getElementById('stockLotBudget').value,
+      stock_recommendation_count: +document.getElementById('stockRecommendationCount').value,
+      bank_interest_ranges: getSelectedBankRateRanges(),
       notes: document.getElementById('notes').value
     };
 
@@ -1016,6 +1328,11 @@ Aturan:
 - Data bank digital, reksadana, dan saham berasal dari pencarian internet yang dilakukan saat tombol analisis ditekan.
 - Jika data bank/reksadana/saham kurang kuat, fallback, atau tidak menemukan sumber resmi, sebutkan secara singkat di warnings.
 - Jangan mengarang bunga, return, harga, atau minimum setoran yang tidak muncul di hasil pencarian internet.
+- Filter/prioritaskan bank berdasarkan bank_interest_ranges yang dipilih pengguna. Pengguna boleh memilih lebih dari satu range sekaligus.
+- Jika stock_lot_mode = "auto", cari dan prioritaskan saham IDX yang biaya 1 lot (100 lembar) <= stock_lot_budget.
+- Untuk setiap rekomendasi saham, pertimbangkan harga per lembar, estimasi biaya 1 lot, perubahan harga terbaru, likuiditas, dan kecocokan dengan profil risiko.
+- Jangan rekomendasikan saham yang biaya 1 lot-nya melebihi stock_lot_budget jika mode otomatis aktif.
+- Jika data saham kandidat belum cukup terverifikasi, masukkan ke warnings dan jangan memaksakan rekomendasi.
 - Buat jawaban ringkas, jelas, realistis, dan tidak bertele-tele.
 - Jangan menulis markdown, jangan menulis tabel, jangan menulis teks di luar JSON.
 
@@ -1067,6 +1384,22 @@ ${JSON.stringify(payload)}
       </div>
     `).join('');
 
+    const candidates = stocks.candidates || stocks.items || [];
+    const lotBudget = +(document.getElementById('stockLotBudget').value || 0);
+    document.getElementById('stockCandidateMeta').textContent =
+      document.getElementById('stockLotMode').value === 'auto'
+        ? `Maks. ${idr(lotBudget)} per 1 lot`
+        : 'Daftar saham manual';
+    document.getElementById('stockCandidates').innerHTML = candidates.slice(0, +document.getElementById('stockRecommendationCount').value || 5).map(x=>`
+      <div class="source">
+        <b>${x.symbol || '-'}</b>
+        <small>Harga/lembar: ${x.price != null ? idr(x.price) : '-'}</small>
+        <small>Estimasi 1 lot: ${x.lot_cost != null ? idr(x.lot_cost) : (x.price != null ? idr(x.price*100) : '-')}</small>
+        <small>Perubahan: ${x.change_percent != null ? Number(x.change_percent).toFixed(2)+'%' : '-'}</small>
+        <small>${x.source || ''}</small>
+      </div>
+    `).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Tidak ditemukan saham 1 lot yang sesuai batas dana saat ini.</small></div>';
+
     const refs = [ ...(stocks.items||[]), ...(banks.items||[]), ...(funds.items||[]) ];
     document.getElementById('research').innerHTML = refs.map(x=>`
       <div class="source">
@@ -1081,8 +1414,17 @@ ${JSON.stringify(payload)}
     else renderFallbackCards(ai.response || '', budget);
 
     document.getElementById('modelUsed').textContent = model;
+
+    const savedAnalysis={budget,crypto,stocks,banks,funds,parsed,raw:ai.response||'',model,created_at:new Date().toISOString()};
+    localStorage.setItem(ANALYSIS_KEY,JSON.stringify(savedAnalysis));
+    try{
+      await fetch('/api/analyses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:getDeviceId(),result_json:savedAnalysis,input_json:payload,ai_json:parsed,ai_raw:ai.response||'',model_name:model,market:{crypto,stocks},research:{banks,funds}})});
+    }catch(e){console.warn('Supabase analysis save failed',e)}
+    await persistState(false);
+
     document.getElementById('progress').classList.add('hidden');
     document.getElementById('results').classList.remove('hidden');
+    document.getElementById('stockCandidatesWrap').classList.remove('hidden');
     document.getElementById('researchWrap').classList.remove('hidden');
     document.getElementById('aiWrap').classList.remove('hidden');
   }catch(e){
@@ -1094,7 +1436,8 @@ ${JSON.stringify(payload)}
   }
 }
 
-document.getElementById('pairBtn').addEventListener('click', pair);
+document.getElementById('pairBtn').addEventListener('click', ()=>pair(false));
+document.getElementById('editPairBtn').addEventListener('click', editPairing);
 document.getElementById('analyzeBtn').addEventListener('click', analyze);
 document.getElementById('cash').addEventListener('input', e=>{
   document.getElementById('miniCash').textContent = idr(+e.target.value||0);
@@ -1104,8 +1447,20 @@ document.getElementById('buffer').addEventListener('input', e=>{
   document.getElementById('miniSafe').textContent = idr(+e.target.value||0);
   document.getElementById('miniSafe2').textContent = idr(+e.target.value||0);
 });
+['cash','allowance','kos','weeks','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','notes','kosSource','model'].forEach(id=>{
+  const el=document.getElementById(id); if(el){el.addEventListener('input',scheduleSave);el.addEventListener('change',scheduleSave)}
+});
+
+(async function initKosFlow(){
+  document.querySelectorAll('input[name="bankRateRange"]').forEach(cb=>{
+  cb.addEventListener('change', scheduleSave);
+});
 
 startCrypto();
+  await restoreState();
+  await restoreLastAnalysis();
+  if(document.getElementById('token').value.trim()) await pair(true);
+})();
 </script>
 </body>
 </html>

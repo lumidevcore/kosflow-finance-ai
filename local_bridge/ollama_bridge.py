@@ -54,7 +54,7 @@ def ollama_json(path, method="GET", payload=None, timeout=300):
     return status, data
 
 class H(BaseHTTPRequestHandler):
-    server_version = "KosFlowLocalBridge/10.3"
+    server_version = "KosFlowLocalBridge/10.7"
 
     def cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -174,7 +174,7 @@ class H(BaseHTTPRequestHandler):
 
 def main():
     print("="*62)
-    print(" KosFlow Finance - Local Ollama Bridge v10.3")
+    print(" KosFlow Finance - Local Ollama Bridge v10.7")
     print("="*62)
     print(f"Bridge        : http://{HOST}:{PORT}")
     print(f"Ollama        : {OLLAMA}")
