@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.23</title>
+<title>KosFlow Finance v10.23.1</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -1417,17 +1417,6 @@ updateKosScopeHint();
 updateAutoMoneyPreview();
 syncKosFundingUI();
 refreshFinancialPreview();
-    });
-    el.addEventListener('change', ()=>{
-      updateAutoMoneyPreview();
-      syncKosFundingUI();
-    });
-  }
-});
-updateAutoMoneyPreview();
-syncKosFundingUI();
-
-
 document.addEventListener('input', (e)=>{
   if(['cash','needs','kosSelfContribution','kosParentContribution','kos','weeks','kosSource'].includes(e.target?.id)){
     setTimeout(()=>{
