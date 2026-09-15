@@ -193,3 +193,19 @@ Perubahan:
 - AI diwajibkan membandingkan produk berdasarkan kategori, profil risiko, likuiditas, biaya/horizon, dan sumber — bukan hanya return historis tertinggi.
 
 Pilihan kategori disimpan di browser lokal. Supabase tidak membutuhkan kolom baru sehingga update ini tidak menimbulkan error schema pada `/api/state`.
+
+
+## Update v10.26 — Card ringkas, Detail overlay, Bank product intelligence, Bahasa Indonesia
+
+Tidak ada migration database baru.
+
+Perubahan utama:
+- card saham menampilkan harga/lembar, biaya 1 lot, status cukup/kurang dana, kekurangan, dan dividen secara ringkas;
+- deskripsi panjang dipindahkan ke tombol `Detail` yang membuka overlay;
+- card bank diprioritaskan menjadi produk penting, rate, syarat utama, dan sumber; noise menu website dibuang;
+- Bank Saqu Saku Booster dan Superbank Celengan mempunyai ringkasan produk resmi agar fakta penting tidak tenggelam dalam hasil crawl;
+- reksadana mempunyai card sendiri; jika sumber kosong, kategori tetap muncul dengan status belum ditemukan;
+- hasil Analisis Ollama diringkas di card; teks panjang dan output mentah hanya lewat Detail;
+- prompt Analisis Ollama dipaksa Bahasa Indonesia;
+- Generate Catatan AI menyimpan teks biasa ke textarea meskipun model sempat membungkus output dalam JSON;
+- saham hanya pencarian informasi dan tidak mengurangi saldo.

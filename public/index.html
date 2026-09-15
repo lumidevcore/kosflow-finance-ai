@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.25</title>
+<title>KosFlow Finance v10.26</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -311,13 +311,36 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 .sec-head span{color:#7386a5;font-size:13px}
 
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
 .snap,.source,.analysis-card,.raw-card{
   border-radius:22px;padding:17px;background:linear-gradient(180deg,#fff,#f8fbff);
   border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)
 }
 .snap b,.source b,.analysis-card h4{display:block;margin:0 0 8px}
 .snap small,.source small{display:block;color:#6f809a;line-height:1.55}
+.source{align-self:start;min-height:0}
+.source .card-actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.detail-btn{
+  border:0;border-radius:12px;padding:8px 11px;background:#edf3ff;color:#315387;
+  font-weight:800;font-size:12px;cursor:pointer
+}
+.detail-btn:hover{background:#dfe9ff}
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(17,30,52,.38);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;padding:22px;z-index:9999
+}
+.modal-backdrop.show{display:flex}
+.detail-modal{
+  width:min(720px,96vw);max-height:84vh;overflow:auto;border-radius:28px;
+  background:#fff;border:1px solid rgba(58,85,129,.12);box-shadow:0 30px 90px rgba(34,57,94,.24);
+  padding:22px
+}
+.detail-modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
+.detail-modal-head h3{margin:0;font-size:22px}
+.detail-close{border:0;background:#eef3fb;border-radius:12px;width:38px;height:38px;font-size:20px;cursor:pointer}
+.detail-body{color:#50617d;line-height:1.7;white-space:pre-wrap}
+.detail-kv{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;margin:10px 0}
+.detail-kv b{color:#233858}
 .cards-grid{
   display:grid;grid-template-columns:repeat(2,1fr);gap:14px
 }
@@ -826,8 +849,8 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
       <section class="card section hidden" id="researchWrap">
         <div class="sec-head">
-          <h3>Data Internet & Referensi</h3>
-          <span>Saham • Bank digital • Reksadana</span>
+          <h3>Produk Bank Digital • Fakta Penting</h3>
+          <span>Ringkas • sumber resmi diprioritaskan</span>
         </div>
         <div class="grid4" id="research"></div>
       </section>
@@ -871,6 +894,34 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 </div>
 
 <script>
+const detailStore = new Map();
+let detailSeq = 0;
+function detailRegister(title, html){
+  const id='d'+(++detailSeq);
+  detailStore.set(id,{title,html});
+  return id;
+}
+function openDetail(id){
+  const item=detailStore.get(id);
+  if(!item) return;
+  document.getElementById('detailTitle').textContent=item.title||'Detail';
+  document.getElementById('detailBody').innerHTML=item.html||'';
+  document.getElementById('detailBackdrop').classList.add('show');
+  document.getElementById('detailBackdrop').setAttribute('aria-hidden','false');
+}
+function closeDetail(){
+  document.getElementById('detailBackdrop').classList.remove('show');
+  document.getElementById('detailBackdrop').setAttribute('aria-hidden','true');
+}
+function detailButton(title, html, label='Detail'){
+  const id=detailRegister(title,html);
+  return `<button type="button" class="detail-btn" onclick="openDetail('${id}')">${escapeHtml(label)}</button>`;
+}
+document.addEventListener('click',e=>{
+  if(e.target?.id==='detailBackdrop' || e.target?.id==='detailCloseBtn') closeDetail();
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDetail(); });
+
 const idr = n => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Math.round(n||0));
 
 const histories = { BTC:[], ETH:[], SOL:[] };
@@ -954,22 +1005,44 @@ function renderFundReturnFacts(item){
   ).join('');
 }
 function renderFundDiscovery(funds){
-  const items=(funds?.items||[]).slice(0,20);
+  const items=(funds?.items||[]).slice(0,24);
   const managers=Array.isArray(funds?.managers_detected)?funds.managers_detected:[];
+  const selected=getSelectedFundCategories();
   const meta=document.getElementById('fundCoverageMeta');
   if(meta){
-    meta.textContent=`${items.length} hasil • ${managers.length || 0} MI teridentifikasi • semua-MI discovery`;
+    meta.textContent=`${items.length} hasil • ${managers.length || 0} MI teridentifikasi`;
   }
-  document.getElementById('fundDiscoveryGrid').innerHTML = items.map(x=>`
-    <div class="source">
-      <b>${escapeHtml(x.product_name || x.title || 'Produk reksadana')}</b>
-      <small><strong>MI:</strong> ${escapeHtml(x.manager || 'Belum teridentifikasi')}</small>
-      <small><strong>Kategori:</strong> ${escapeHtml(fundCategoryLabel(x.fund_category))}</small>
-      ${renderFundReturnFacts(x)}
-      <small>${compactSnippet(x.snippet||'',125)}</small>
-      <small>${sourceHost(x.url||'')}</small>
-    </div>
-  `).join('') || '<div class="source"><b>Belum ada hasil</b><small>Sumber reksadana belum berhasil ditemukan pada pencarian ini.</small></div>';
+
+  const cards=items.map(x=>{
+    const title=x.product_name || x.title || 'Produk reksadana';
+    const returns=renderFundReturnFacts(x);
+    const detail=`
+      <div class="detail-kv">
+        <b>Manajer Investasi</b><span>${escapeHtml(x.manager||'Belum teridentifikasi')}</span>
+        <b>Kategori</b><span>${escapeHtml(fundCategoryLabel(x.fund_category))}</span>
+        <b>Sumber</b><span>${escapeHtml(x.url||'-')}</span>
+      </div>
+      ${returns}
+      <p>${escapeHtml(compactSnippet(x.snippet||'',900))}</p>`;
+    return `<div class="source">
+      <b>${escapeHtml(title)}</b>
+      <small>${escapeHtml(x.manager || 'MI belum teridentifikasi')}</small>
+      <small>${escapeHtml(fundCategoryLabel(x.fund_category))}</small>
+      ${returns}
+      <div class="card-actions">${detailButton(title,detail)}</div>
+    </div>`;
+  });
+
+  if(!cards.length){
+    selected.forEach(cat=>{
+      cards.push(`<div class="source">
+        <b>${escapeHtml(fundCategoryLabel(cat))}</b>
+        <small>Belum ada produk yang berhasil ditemukan pada pencarian ini.</small>
+        <small>Coba analisis ulang untuk refresh sumber internet.</small>
+      </div>`);
+    });
+  }
+  document.getElementById('fundDiscoveryGrid').innerHTML=cards.join('');
 }
 function getSelectedBankRateRanges(){
   return [...document.querySelectorAll('input[name="bankRateRange"]:checked')].map(x=>x.value);
@@ -1036,10 +1109,15 @@ function compactSnippet(text,max=190){
 }
 function renderBankRateFacts(item){
   const facts=Array.isArray(item?.rate_facts)?item.rate_facts:[];
-  if(!facts.length) return '';
-  return facts.slice(0,3).map(f=>`
-    <small><strong>${escapeHtml(f.rate||'')}</strong>${f.context?' • '+escapeHtml(f.context):''}</small>
-  `).join('');
+  const product=item.product_name || '';
+  const first=facts[0];
+  if(first){
+    return `<small><strong>${product?escapeHtml(product)+' • ':''}${escapeHtml(first.rate||'')}</strong>${first.short_context?' • '+escapeHtml(first.short_context):''}</small>`;
+  }
+  if(item.important_facts?.length){
+    return `<small>${escapeHtml(item.important_facts[0])}</small>`;
+  }
+  return '<small>Rate penting belum berhasil diverifikasi.</small>';
 }
 function sourceHost(url){
   try{return new URL(url).hostname.replace(/^www\\./,'')}catch(e){return url||''}
@@ -1275,44 +1353,51 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 function renderAnalysisCardsFromJSON(data, raw){
-  const wrap = document.getElementById('analysisCards');
-  const status = data.status || data.overall_status || 'Belum ada status';
-  const summary = data.summary || [];
-  const priorities = data.priorities || data.priority || [];
-  const warnings = data.warnings || [];
-  const recommendations = data.recommendations || data.recommendation || [];
-  const conclusion = data.conclusion || data.final_conclusion || data.kesimpulan || 'Belum ada kesimpulan.';
-  wrap.innerHTML = `
+  const wrap=document.getElementById('analysisCards');
+  const status=data.status||data.overall_status||'Belum ada status';
+  const summary=data.summary||[];
+  const priorities=data.priorities||data.priority||[];
+  const warnings=data.warnings||[];
+  const recommendations=data.recommendations||data.recommendation||[];
+  const conclusion=data.conclusion||data.final_conclusion||data.kesimpulan||'Belum ada kesimpulan.';
+
+  const compactList=(arr,max=2)=>Array.isArray(arr)?arr.slice(0,max):[];
+  const listDetail=(title,arr)=>detailButton(title,
+    Array.isArray(arr)&&arr.length?'<ul>'+arr.map(x=>`<li>${escapeHtml(typeof x==='string'?x:(x.detail||x.title||JSON.stringify(x)))}</li>`).join('')+'</ul>':'Tidak ada detail.'
+  );
+
+  const recPreview=recommendations.slice(0,2).map(x=>
+    `<small><strong>${escapeHtml(x.title||'Rekomendasi')}</strong>${x.detail?' • '+escapeHtml(compactSnippet(x.detail,100)):''}</small>`
+  ).join('');
+
+  wrap.innerHTML=`
     <article class="analysis-card summary">
-      <div class="tag">📊 Status</div>
-      <h4>${escapeHtml(status)}</h4>
-      ${bulletize(summary)}
+      <div class="tag">📊 Status</div><h4>${escapeHtml(status)}</h4>
+      ${compactList(summary).map(x=>`<small>${escapeHtml(String(x))}</small>`).join('')}
+      <div class="card-actions">${listDetail('Detail status & ringkasan',summary)}</div>
     </article>
     <article class="analysis-card priority">
-      <div class="tag">🎯 Prioritas Utama</div>
-      <h4>Yang perlu didahulukan</h4>
-      ${bulletize(priorities)}
+      <div class="tag">🎯 Prioritas Utama</div><h4>Yang perlu didahulukan</h4>
+      ${compactList(priorities).map(x=>`<small>${escapeHtml(String(x))}</small>`).join('')}
+      <div class="card-actions">${listDetail('Detail prioritas',priorities)}</div>
     </article>
     <article class="analysis-card warning">
-      <div class="tag">⚠️ Peringatan</div>
-      <h4>Hal yang perlu diwaspadai</h4>
-      ${bulletize(warnings)}
+      <div class="tag">⚠️ Peringatan</div><h4>Hal yang perlu diwaspadai</h4>
+      ${compactList(warnings).map(x=>`<small>${escapeHtml(String(x))}</small>`).join('')}
+      <div class="card-actions">${listDetail('Detail peringatan',warnings)}</div>
     </article>
     <article class="analysis-card recommend">
-      <div class="tag">💡 Rekomendasi</div>
-      <h4>Saran tindakan</h4>
-      ${mapObjectBullets(recommendations)}
+      <div class="tag">💡 Rekomendasi</div><h4>Saran tindakan</h4>
+      ${recPreview||'<small>Tidak ada rekomendasi.</small>'}
+      <div class="card-actions">${detailButton('Detail rekomendasi',mapObjectBullets(recommendations))}</div>
     </article>
     <article class="analysis-card conclusion" style="grid-column:1/-1">
-      <div class="tag">✅ Kesimpulan</div>
-      <h4>Kesimpulan akhir</h4>
-      <p>${escapeHtml(conclusion)}</p>
-    </article>
-    <article class="raw-card" style="grid-column:1/-1">
-      <div class="tag" style="display:inline-flex;padding:8px 12px;border-radius:999px;background:#eef4ff;color:#4563a0;font-size:12px;font-weight:800;margin-bottom:12px">🧾 Output mentah model</div>
-      <pre>${escapeHtml(raw || '')}</pre>
-    </article>
-  `;
+      <div class="tag">✅ Kesimpulan</div><h4>${escapeHtml(compactSnippet(conclusion,160))}</h4>
+      <div class="card-actions">
+        ${detailButton('Kesimpulan lengkap',`<p>${escapeHtml(conclusion)}</p>`)}
+        ${detailButton('Output mentah model',`<pre style="white-space:pre-wrap">${escapeHtml(raw||'')}</pre>`,'Output mentah')}
+      </div>
+    </article>`;
 }
 function renderFallbackCards(raw, budget){
   const status = (budget.safe_investment_amount||0) > 0 ? 'Mulai ada ruang investasi terbatas' : 'Fokus stabilisasi keuangan';
@@ -1980,7 +2065,8 @@ Aturan:
 - Dana orang tua untuk kos bukan saldo pribadi dan bukan modal investasi.
 - Jika surplus aman investasi = 0, jelaskan bahwa belum ada dana investasi yang benar-benar tersedia saat ini. Gunakan saldo pribadi aktual setelah pembayaran kos pribadi dan kebutuhan minggu ini sebagai dasar. Uang saku adalah pemasukan terpisah, bukan dasar utama dana aman.
 - Sesuaikan rekomendasi bank dengan range bunga pilihan.
-- Jika pencarian saham otomatis aktif, arahkan agar saham 1 lot sesuai budget serta memperhatikan dividen, likuiditas, dan risiko.
+- Jika pencarian saham otomatis aktif, jangan sebut ada budget saham. Saham hanya dicari; jelaskan sistem akan menampilkan kebutuhan dana 1 lot, kekurangan dana, dividen, likuiditas, dan risiko tanpa memotong saldo.
+- Sertakan bahwa reksadana dicari lintas semua Manajer Investasi untuk Pasar Uang, Pendapatan Tetap, Campuran, dan Saham sesuai profil risiko.
 - Simulasi crypto/saham adalah skenario, bukan prediksi.
 - Buat catatan yang cocok langsung dipakai sebagai instruksi analisis berikutnya.
 
@@ -1996,11 +2082,25 @@ ${JSON.stringify(context)}`;
     const data=await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
     if(!rr.ok) throw new Error(data.detail||data.ollama_error||data.error||`HTTP ${rr.status}`);
     let text=(data.response||'').trim();
-    text=text.replace(/^```(?:text)?\s*/i,'').replace(/\s*```$/,'').trim();
-    if(text.startsWith('"')&&text.endsWith('"')){
-      try{text=JSON.parse(text)}catch(e){}
-    }
-    if(!text) throw new Error('AI tidak mengembalikan catatan.');
+    text=text.replace(/^```(?:json|text)?\s*/i,'').replace(/\s*```$/,'').trim();
+    // Transport bridge tetap JSON, tetapi isi Catatan wajib teks biasa.
+    try{
+      const obj=JSON.parse(text);
+      if(obj && typeof obj==='object'){
+        text=String(
+          obj.catatan_analisis_keuangan ||
+          obj.catatan ||
+          obj.note ||
+          obj.text ||
+          obj.response ||
+          ''
+        ).trim();
+      }else if(typeof obj==='string'){
+        text=obj.trim();
+      }
+    }catch(e){}
+    text=text.replace(/^\s*["']|["']\s*$/g,'').trim();
+    if(!text) throw new Error('AI tidak mengembalikan catatan teks.');
 
     notes.value=text;
     notes.dispatchEvent(new Event('input',{bubbles:true}));
@@ -2295,45 +2395,63 @@ ${JSON.stringify(payload)}
         : 'Daftar saham manual';
     document.getElementById('stockCandidates').innerHTML =
       candidates.slice(0, +document.getElementById('stockRecommendationCount').value || 5).map(x=>{
-        const lotCost = x.lot_cost != null ? Number(x.lot_cost) : (x.price != null ? Number(x.price)*100 : 0);
-        const available = Math.max(0, Number(budget.safe_investment_amount||0));
-        const gap = Math.max(0, lotCost - available);
-        const enough = lotCost > 0 && available >= lotCost;
-        const fundingStatus = enough
-          ? `✅ Cukup dana • sisa ${idr(available-lotCost)}`
-          : lotCost > 0
-          ? `💡 Butuh tambahan ${idr(gap)}`
-          : 'ℹ️ Biaya 1 lot belum tersedia';
-        const actionStatus = enough ? 'Bisa dipertimbangkan' : 'Pantau / kumpulkan dana';
+        const lotCost=x.lot_cost!=null?Number(x.lot_cost):(x.price!=null?Number(x.price)*100:0);
+        const available=Math.max(0,Number(budget.safe_investment_amount||0));
+        const gap=Math.max(0,lotCost-available);
+        const enough=lotCost>0 && available>=lotCost;
+        const status=enough?'✅ Dana cukup':lotCost>0?`💡 Kurang ${idr(gap)}`:'ℹ️ Biaya belum tersedia';
+        const div=x.dividend_per_share!=null?idr(Number(x.dividend_per_share)||0)+'/saham':'Belum ada data';
+        const yieldText=x.dividend_yield_percent!=null?Number(x.dividend_yield_percent).toFixed(2)+'%':'Belum ada data';
+        const detail=`
+          <div class="detail-kv">
+            <b>Harga / lembar</b><span>${x.price!=null?idr(x.price):'-'}</span>
+            <b>Dana 1 lot</b><span>${lotCost?idr(lotCost):'-'}</span>
+            <b>Dana tersedia</b><span>${idr(available)}</span>
+            <b>Status dana</b><span>${escapeHtml(status)}</span>
+            <b>Perubahan</b><span>${x.change_percent!=null?Number(x.change_percent).toFixed(2)+'%':'-'}</span>
+            <b>Dividen indikatif</b><span>${escapeHtml(div)}</span>
+            <b>Dividend yield</b><span>${escapeHtml(yieldText)}</span>
+            <b>Sumber harga</b><span>${escapeHtml(x.source||'-')}</span>
+            <b>Sumber dividen</b><span>${escapeHtml(x.dividend_source||'-')}</span>
+          </div>
+          <p>Ini hanya kandidat pencarian. Saldo tidak dipotong otomatis dan tidak dianggap sudah membeli saham.</p>`;
         return `<div class="source">
-          <b>${escapeHtml(x.symbol || '-')}</b>
-          <small>Harga/lembar: ${x.price != null ? idr(x.price) : '-'}</small>
-          <small>1 lot = 100 lembar</small>
-          <small><strong>Dana yang dibutuhkan: ${lotCost ? idr(lotCost) : '-'}</strong></small>
-          <small>${fundingStatus}</small>
-          <small>Status: ${actionStatus}</small>
-          <small>Perubahan: ${x.change_percent != null ? Number(x.change_percent).toFixed(2)+'%' : '-'}</small>
-          ${x.dividend_per_share!=null ? `<small>Dividen indikatif: ${idr(Number(x.dividend_per_share)||0)}/saham</small>` : ''}
-          <small>${escapeHtml(x.source || '')}</small>
-          <small style="color:#8190aa">Saldo tidak dikurangi otomatis.</small>
+          <b>${escapeHtml(x.symbol||'-')}</b>
+          <small>${x.price!=null?idr(x.price)+'/lembar':'Harga belum tersedia'}</small>
+          <small><strong>1 lot: ${lotCost?idr(lotCost):'-'}</strong></small>
+          <small>${status}</small>
+          <small>Dividen: ${escapeHtml(div)}</small>
+          <div class="card-actions">${detailButton('Detail '+(x.symbol||'Saham'),detail)}</div>
         </div>`;
       }).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Sistem belum menemukan kandidat saham untuk ditampilkan.</small></div>';
 
     renderFundDiscovery(funds);
-    const refs = [ ...(stocks.items||[]), ...(banks.items||[]) ];
-    document.getElementById('research').innerHTML = refs.map(x=>`
-      <div class="source">
-        <b>${x.symbol || x.category || 'Sumber'}${x.title ? ' • ' + compactSnippet(x.title,70) : ''}</b>
-        <small>${compactSnippet(x.snippet || (x.price != null ? idr(x.price) : ''),190)}</small>
-        <small>${sourceHost(x.url || x.source || '')}</small>
-      </div>
-    `).join('');
+    const bankItems=(banks.items||[]).slice(0,20);
+    document.getElementById('research').innerHTML = bankItems.map(x=>{
+      const title=x.product_name || x.title || x.category || 'Produk bank';
+      const facts=(x.important_facts||[]).slice(0,6);
+      const detail=`
+        <div class="detail-kv">
+          <b>Bank / produk</b><span>${escapeHtml(title)}</span>
+          <b>Sumber</b><span>${escapeHtml(x.url||'-')}</span>
+          <b>Resmi</b><span>${x.official_hint?'Ya':'Belum terverifikasi'}</span>
+        </div>
+        ${facts.length?'<ul>'+facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')+'</ul>':''}
+        <p>${escapeHtml(compactSnippet(x.snippet||'',900))}</p>`;
+      return `<div class="source">
+        <b>${escapeHtml(title)}</b>
+        ${renderBankRateFacts(x)}
+        ${facts[1]?`<small>${escapeHtml(facts[1])}</small>`:''}
+        <small>${sourceHost(x.url||'')}</small>
+        <div class="card-actions">${detailButton(title,detail)}</div>
+      </div>`;
+    }).join('') || '<div class="source"><b>Belum ada hasil bank</b><small>Belum ada produk bank yang berhasil diverifikasi pada pencarian ini.</small></div>';
 
     let rawAI=ai.response || '';
     let parsed=tryParseJSON(rawAI);
     if(!isExpectedAnalysisShape(parsed)){
       step('ollama',94,'Memperbaiki format hasil AI menjadi card terstruktur');
-      const repairPrompt=`Ubah output berikut menjadi JSON valid SESUAI schema yang diberikan. Jangan tambah fakta baru. Jika informasi tidak ada, gunakan array kosong atau string singkat. Output mentah:\n${rawAI}`;
+      const repairPrompt=`Ubah output berikut menjadi JSON valid SESUAI schema yang diberikan dan pastikan SEMUA isi teks berbahasa Indonesia. Jangan tambah fakta baru. Jika informasi tidak ada, gunakan array kosong atau string singkat. Output mentah:\n${rawAI}`;
       const repairRes=await fetch(bridge+'/generate',{method:'POST',headers:{'Content-Type':'application/json','X-KosFlow-Token':token},body:JSON.stringify({model,prompt:repairPrompt,temperature:0,schema:analysisSchema})});
       const repaired=await repairRes.json().catch(()=>({}));
       if(repairRes.ok && repaired.response){rawAI=repaired.response;parsed=tryParseJSON(rawAI);}
@@ -2404,5 +2522,16 @@ startCrypto();
   if(document.getElementById('token').value.trim()) await pair(true);
 })();
 </script>
+
+<div class="modal-backdrop" id="detailBackdrop" aria-hidden="true">
+  <div class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="detail-modal-head">
+      <h3 id="detailTitle">Detail</h3>
+      <button class="detail-close" id="detailCloseBtn" type="button">×</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
 </body>
 </html>

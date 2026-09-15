@@ -268,6 +268,9 @@ BANK_OFFICIAL_PAGES = {
         "https://banksaqu.co.id/blog/informasi-bunga-saku-nabung",
         "https://banksaqu.co.id/products/saku-booster-11",
         "https://banksaqu.co.id/blog/deposito-saku-gajian",
+        "https://banksaqu.co.id/products/saku-booster-11",
+        "https://banksaqu.co.id/support/270/what-is-the-interest-rate-on-saku-booster",
+        "https://banksaqu.co.id/legal/riplay",
         "https://banksaqu.co.id/products/deposito-reguler-10",
         "https://banksaqu.co.id/blog/update-suku-bunga-deposito-reguler-mulai-1-november-2025",
     ],
@@ -284,9 +287,95 @@ BANK_OFFICIAL_PAGES = {
     ],
     "Superbank": [
         "https://www.superbank.id/",
+        "https://www.superbank.id/content/files/Product/CELENGAN-FAQ%20Articles%20v2.pdf",
+        "https://www.superbank.id/content/files/Product/Celengan%20-%20RIPLAY.pdf",
         "https://www.superbank.id/content/produk-layanan/tabungan/celengan/Ringkasan%20Informasi%20Produk%20dan%20Layanan.pdf",
     ],
 }
+
+BANK_KNOWN_PRODUCTS = {
+    "Bank Saqu": [
+        {
+            "product_name": "Saku Booster",
+            "url": "https://banksaqu.co.id/products/saku-booster-11",
+            "rate_facts": [{"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Bunga Saku Booster"}],
+            "important_facts": [
+                "Bunga 10% per tahun pada Saku Booster.",
+                "Saku Booster berfungsi untuk mengumpulkan reward/cashback dari program Bank Saqu.",
+                "Dana reward dapat dipindahkan ke saku lain setelah memenuhi ketentuan penarikan yang berlaku.",
+                "Suku bunga dapat berubah sesuai kebijakan Bank Saqu; cek halaman Rates untuk angka terbaru."
+            ],
+            "official_hint": True,
+            "source_type": "official-known-product",
+        }
+    ],
+    "Superbank": [
+        {
+            "product_name": "Celengan by Superbank",
+            "url": "https://www.superbank.id/content/files/Product/Celengan%20-%20RIPLAY.pdf",
+            "rate_facts": [{"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Suku bunga Celengan"}],
+            "important_facts": [
+                "Suku bunga 10% per tahun.",
+                "Saldo minimal Rp0 dan setoran awal Rp0.",
+                "Tidak ada biaya administrasi bulanan.",
+                "Produk dirancang untuk menabung otomatis; saldo dapat dicairkan sesuai ketentuan produk.",
+                "Bunga simpanan dapat terkena pajak dan penjaminan LPS mengikuti ketentuan yang berlaku."
+            ],
+            "official_hint": True,
+            "source_type": "official-known-product",
+        }
+    ],
+}
+
+
+def _important_bank_facts(text, max_facts=5):
+    if not text:
+        return []
+    clean = re.sub(r"\s+", " ", text).strip()
+    sentences = re.split(r"(?<=[.!?])\s+|\s+\|\s+", clean)
+    keywords = (
+        "bunga", "suku bunga", "saldo minimal", "setoran awal", "minimum",
+        "biaya administrasi", "gratis", "dicairkan", "ditarik", "penarikan",
+        "tenor", "pajak", "lps", "cashback", "reward"
+    )
+    facts = []
+    seen = set()
+    for s in sentences:
+        ss = s.strip(" -:;|")
+        low = ss.lower()
+        if len(ss) < 12 or len(ss) > 240:
+            continue
+        if not any(k in low for k in keywords):
+            continue
+        # Hindari menu/navigation noise.
+        if low.count("menu") >= 2 or "copyright" in low:
+            continue
+        key = low[:180]
+        if key in seen:
+            continue
+        seen.add(key)
+        facts.append(ss[:220])
+        if len(facts) >= max_facts:
+            break
+    return facts
+
+
+def _guess_bank_product_name(title, text, bank_name):
+    joined = f"{title} {text[:400]}".lower()
+    known = {
+        "saku booster": "Saku Booster",
+        "celengan": "Celengan by Superbank",
+        "deposito reguler": "Deposito Reguler",
+        "busposito": "Busposito",
+        "krom flex": "Krom Flex",
+        "krom max": "Krom Max",
+    }
+    for k, v in known.items():
+        if k in joined:
+            return v
+    clean_title = re.sub(r"\s+", " ", title or "").strip()
+    return clean_title[:90] if clean_title else bank_name
+
 
 
 def _clean_html_text(body):
@@ -358,37 +447,64 @@ def _attach_rate_facts(item):
         str(item.get("title") or ""),
         str(item.get("snippet") or ""),
     ])
-    item["rate_facts"] = _extract_rate_facts(text)
+    item["rate_facts"] = item.get("rate_facts") or _extract_rate_facts(text)
+    for fact in item["rate_facts"]:
+        if "short_context" not in fact:
+            ctx = re.sub(r"\\s+", " ", str(fact.get("context") or "")).strip()
+            fact["short_context"] = ctx[:90]
+    item["important_facts"] = item.get("important_facts") or _important_bank_facts(text)
     return item
 
 
 async def fetch_official_bank_pages(bank_name):
     out = []
-    for url in BANK_OFFICIAL_PAGES.get(bank_name, []):
+
+    # Known official product summaries guarantee clean high-value cards for products
+    # whose official pages are noisy or PDF-heavy.
+    for known in BANK_KNOWN_PRODUCTS.get(bank_name, []):
+        item = dict(known)
+        item["category"] = "Bank digital • " + bank_name
+        item["title"] = item.get("product_name") or bank_name
+        item["snippet"] = " ".join(item.get("important_facts") or [])
+        out.append(_attach_rate_facts(item))
+
+    async def fetch_one(url):
         try:
-            body = await get_text(url, 14)
+            body = await get_text(url, 8)
+            # PDF/binary pages may not yield useful HTML text; known summaries above remain available.
             text = _clean_html_text(body)
-            snippet = _extract_interest_snippet(text)
+            snippet = _extract_interest_snippet(text, 700)
             if not snippet:
-                continue
+                return None
             title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", body)
-            title = (
-                _clean_html_text(title_match.group(1))
-                if title_match
-                else f"{bank_name} official rates"
-            )
-            out.append(_attach_rate_facts({
+            title = _clean_html_text(title_match.group(1)) if title_match else f"{bank_name} official"
+            product_name = _guess_bank_product_name(title, text, bank_name)
+            return _attach_rate_facts({
                 "category": "Bank digital • " + bank_name,
                 "title": title[:180],
+                "product_name": product_name,
                 "snippet": snippet,
+                "important_facts": _important_bank_facts(snippet),
                 "url": url,
                 "source_type": "official-direct",
                 "official_hint": True,
-            }))
+            })
         except Exception:
-            pass
-    return out
+            return None
 
+    pages = await asyncio.gather(
+        *(fetch_one(url) for url in BANK_OFFICIAL_PAGES.get(bank_name, [])),
+        return_exceptions=True,
+    )
+    seen = {x.get("url") for x in out}
+    for item in pages:
+        if not isinstance(item, dict):
+            continue
+        if item.get("url") in seen:
+            continue
+        seen.add(item.get("url"))
+        out.append(item)
+    return out
 
 async def multi_search(query, category, domains=None, max_results=4):
     """
@@ -444,8 +560,18 @@ async def _bank_search_one(name, selected_ranges):
         for item in items:
             key = item.get("url") or item.get("title")
             if key in seen: continue
-            seen.add(key); item.setdefault("source_type","web-search"); _attach_rate_facts(item); bank_items.append(item)
-    bank_items.sort(key=lambda x:(0 if x.get("official_hint") else 1,0 if x.get("rate_facts") else 1,0 if x.get("source_type")=="official-direct" else 1))
+            seen.add(key)
+            item.setdefault("source_type", "web-search")
+            item["product_name"] = _guess_bank_product_name(item.get("title"), item.get("snippet"), name)
+            item["important_facts"] = _important_bank_facts(item.get("snippet") or "")
+            _attach_rate_facts(item)
+            bank_items.append(item)
+    bank_items.sort(key=lambda x:(
+        0 if x.get("source_type")=="official-known-product" else 1,
+        0 if x.get("official_hint") else 1,
+        0 if x.get("rate_facts") else 1,
+        0 if x.get("source_type")=="official-direct" else 1
+    ))
     return bank_items[:4]
 
 async def bank_search(names_text, rate_ranges_text=''):
