@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.22</title>
+<title>KosFlow Finance v10.23</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -499,7 +499,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
             <input id="cash" type="number" value="400000" />
           </div>
           <div class="field">
-            <label>Uang saku / minggu</label>
+            <label>Uang saku / minggu (pemasukan terpisah)</label>
             <input id="allowance" type="number" value="300000" />
           </div>
         </div>
@@ -581,6 +581,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
             <label>Dana aman otomatis</label>
             <input id="buffer" type="number" value="260000" readonly />
             <div class="range-help">Otomatis mengikuti saldo pribadi aktual setelah pembayaran kos pribadi, lalu dikurangi kebutuhan minggu ini. Kalau saldo e-wallet/rekening berubah, nilai ini ikut berubah.</div>
+            <div class="range-help" id="safeFundFormulaLive" style="font-weight:700;color:#52698d;margin-top:6px">Rumus akan dihitung otomatis.</div>
           </div>
           <div class="field">
             <label>Kebutuhan minggu ini (7 hari)</label>
@@ -1426,6 +1427,17 @@ refreshFinancialPreview();
 updateAutoMoneyPreview();
 syncKosFundingUI();
 
+
+document.addEventListener('input', (e)=>{
+  if(['cash','needs','kosSelfContribution','kosParentContribution','kos','weeks','kosSource'].includes(e.target?.id)){
+    setTimeout(()=>{
+      updateAutoMoneyPreview();
+      syncKosFundingUI();
+      refreshFinancialPreview();
+    },0);
+  }
+});
+
 startCrypto();
 });
 
@@ -1599,11 +1611,19 @@ function updateAutoMoneyPreview(){
   const selfPay=+document.getElementById('kosSelfContribution')?.value||0;
   const parentPay=+document.getElementById('kosParentContribution')?.value||0;
 
+  // Dana aman harus mengikuti SALDO PRIBADI aktual, bukan uang saku.
+  // Rumus UI cepat: saldo pribadi - kontribusi kos pribadi - kebutuhan minggu ini.
   const personalAfter=Math.max(0, cash-selfPay);
   const autoSafe=Math.max(0, personalAfter-needs);
 
   const bufferEl=document.getElementById('buffer');
   if(bufferEl) bufferEl.value=Math.round(autoSafe);
+
+  const liveFormula=document.getElementById('safeFundFormulaLive');
+  if(liveFormula){
+    liveFormula.textContent =
+      `${idr(cash)} − ${idr(selfPay)} − ${idr(needs)} = ${idr(autoSafe)}`;
+  }
   const bankSimEl=document.getElementById('bankSimulationAmount');
   if(bankSimEl){
     // Nilai final akan disegarkan lagi setelah calcBudget menghitung safe investment.
@@ -1684,6 +1704,12 @@ function calcBudget(){
   const finalAutoSafe = Math.max(0, personalCashAfterKos - needs);
   if(bufferEl) bufferEl.value = Math.round(finalAutoSafe);
 
+  const liveFormula=document.getElementById('safeFundFormulaLive');
+  if(liveFormula){
+    liveFormula.textContent =
+      `${idr(cash)} − ${idr(initialSelfPaid)} − ${idr(needs)} = ${idr(finalAutoSafe)}`;
+  }
+
   // Jika kontribusi orang tua ditujukan untuk sisa kos, tetap tampil terpisah.
   const parentKosReserved = parentContribution;
 
@@ -1699,7 +1725,10 @@ function calcBudget(){
   const bankSimulationAutoAmount = Math.max(0, finalAutoSafe);
 
   const bankSimEl = document.getElementById('bankSimulationAmount');
-  if(bankSimEl) bankSimEl.value = Math.round(bankSimulationAutoAmount);
+  if(bankSimEl){
+    bankSimEl.value = Math.round(bankSimulationAutoAmount);
+    bankSimEl.setAttribute('data-auto-source','safe-fund');
+  }
 
   const cycleStartDate = parseLocalDate(kosCycleStart);
   const cycleEndDate = parseLocalDate(kosCycleEnd);

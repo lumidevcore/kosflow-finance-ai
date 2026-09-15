@@ -248,3 +248,19 @@ Perubahan UI:
 - Nilai ini berarti total kebutuhan untuk 7 hari yang sedang berjalan.
 - Digunakan sebagai pengurang saldo pribadi saat menghitung Dana Aman Otomatis.
 - Field Supabase tetap memakai kolom `weekly_needs`, jadi tidak ada perubahan schema.
+
+
+## Update v10.23 — Dana aman benar-benar mengikuti saldo pribadi
+
+Tidak ada migration database baru.
+
+Perubahan:
+- Dana Aman Otomatis memakai rumus: saldo pribadi aktual - pembayaran kos dari saldo pribadi - kebutuhan minggu ini.
+- Uang saku tidak menjadi dasar Dana Aman Otomatis.
+- Rumus ditampilkan langsung di bawah field agar mudah dicek.
+- Dana simulasi bank selalu mengikuti Dana Aman Otomatis.
+- Semua nilai dihitung ulang saat saldo, kebutuhan, kontribusi kos, atau sumber pembayaran berubah.
+
+Contoh:
+Saldo pribadi Rp600.000, pembayaran kos pribadi Rp330.000, kebutuhan Rp0
+→ Dana Aman Otomatis = Rp270.000.
