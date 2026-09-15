@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.2</title>
+<title>KosFlow Finance v10.3</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -711,10 +711,36 @@ function renderCoin(sym, price, change){
   });
   last[sym] = price;
 }
+let cryptoPollTimer = null;
+
+async function refreshCryptoSnapshot(){
+  try{
+    const d = await (await fetch('/api/crypto-snapshot',{cache:'no-store'})).json();
+    for(const x of (d.items||[])){
+      if(x.price_usdt){
+        renderCoin(x.symbol, +x.price_usdt, +(x.change_24h||0));
+      }
+    }
+  }catch(e){}
+}
+
 function startCrypto(){
   getFx();
+
+  if(ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)){
+    return;
+  }
+
   try{
     ws = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
+
+    ws.onopen = ()=>{
+      if(cryptoPollTimer){
+        clearInterval(cryptoPollTimer);
+        cryptoPollTimer = null;
+      }
+    };
+
     ws.onmessage = (e)=>{
       const arr = JSON.parse(e.data);
       for(const x of arr){
@@ -723,8 +749,51 @@ function startCrypto(){
         if(x.s==='SOLUSDT') renderCoin('SOL', +x.c, ((+x.c-+x.o)/+x.o)*100);
       }
     };
-  }catch(e){}
+
+    ws.onerror = ()=>{
+      try{ ws.close(); }catch(e){}
+    };
+
+    ws.onclose = ()=>{
+      ws = null;
+      if(!document.hidden && !cryptoPollTimer){
+        refreshCryptoSnapshot();
+        cryptoPollTimer = setInterval(refreshCryptoSnapshot, 3000);
+      }
+    };
+  }catch(e){
+    if(!cryptoPollTimer){
+      refreshCryptoSnapshot();
+      cryptoPollTimer = setInterval(refreshCryptoSnapshot, 3000);
+    }
+  }
 }
+
+window.addEventListener('pagehide', ()=>{
+  if(ws){
+    try{ws.close(1000,'pagehide')}catch(e){}
+    ws = null;
+  }
+  if(cryptoPollTimer){
+    clearInterval(cryptoPollTimer);
+    cryptoPollTimer = null;
+  }
+});
+
+window.addEventListener('pageshow', ()=>{
+  if(!document.hidden) startCrypto();
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    if(ws){
+      try{ws.close(1000,'hidden')}catch(e){}
+      ws = null;
+    }
+  }else{
+    startCrypto();
+  }
+});
 
 async function pair(){
   const url = document.getElementById('bridge').value.replace(/\/$/,'');
@@ -873,16 +942,21 @@ async function analyze(){
     step('crypto', 22, 'Mengambil snapshot baru khusus analisis');
     const crypto = await (await fetch('/api/crypto-snapshot',{cache:'no-store'})).json();
 
-    step('stocks', 38, 'Mengambil data saham IDX');
-    const stocks = await (await fetch('/api/stocks?symbols='+encodeURIComponent(document.getElementById('stocks').value),{cache:'no-store'})).json();
+    step('stocks', 38, 'Mencari saham IDX dan sumber pasar di internet');
+    step('banks', 52, 'Mencari Bank Jago, Saqu, Neo, dan Krom di web internet');
+    step('funds', 66, 'Mencari reksadana dan performa terbaru di web internet');
 
-    step('banks', 52, 'Mencari bank digital');
-    const banks = await (await fetch('/api/banks?names='+encodeURIComponent(document.getElementById('banks').value),{cache:'no-store'})).json();
+    const researchUrl = '/api/research?banks='
+      + encodeURIComponent(document.getElementById('banks').value)
+      + '&stocks='
+      + encodeURIComponent(document.getElementById('stocks').value);
 
-    step('funds', 66, 'Mencari data reksadana');
-    const funds = await (await fetch('/api/funds',{cache:'no-store'})).json();
+    const researchPack = await (await fetch(researchUrl,{cache:'no-store'})).json();
+    const stocks = researchPack.stocks || {items:[]};
+    const banks = researchPack.banks || {items:[]};
+    const funds = researchPack.funds || {items:[]};
 
-    step('match', 78, 'Menyusun data untuk Ollama');
+    step('match', 78, 'Menyusun hasil pencarian internet untuk Ollama');
 
     const payload = {
       budget,
@@ -890,9 +964,29 @@ async function analyze(){
       stocks,
       banks,
       funds,
+      internet_research_timestamp: researchPack.fetched_at || null,
       risk: document.getElementById('risk').value,
       notes: document.getElementById('notes').value
     };
+
+    const compact = (obj, maxItems=6) => ({
+      ...obj,
+      items: (obj?.items || []).slice(0,maxItems).map(x=>({
+        symbol:x.symbol,
+        price:x.price,
+        change_percent:x.change_percent,
+        category:x.category,
+        title:x.title,
+        snippet:(x.snippet||'').slice(0,500),
+        url:x.url,
+        source:x.source,
+        official_hint:x.official_hint
+      }))
+    });
+
+    payload.stocks = compact(stocks, 8);
+    payload.banks = compact(banks, 10);
+    payload.funds = compact(funds, 8);
 
     const prompt = `
 Kamu adalah analis keuangan pribadi Indonesia.
@@ -919,7 +1013,9 @@ Aturan:
 - Jika mode campuran, pembayaran awal berasal dari saldo sendiri sedangkan sisa kos ditanggung orang tua.
 - Jangan sarankan memakai uang yang memang dialokasikan untuk kos sebagai investasi.
 - Bedakan crypto snapshot dengan harga live.
-- Jika data bank/reksadana/saham kurang kuat atau fallback, sebutkan secara singkat di warnings.
+- Data bank digital, reksadana, dan saham berasal dari pencarian internet yang dilakukan saat tombol analisis ditekan.
+- Jika data bank/reksadana/saham kurang kuat, fallback, atau tidak menemukan sumber resmi, sebutkan secara singkat di warnings.
+- Jangan mengarang bunga, return, harga, atau minimum setoran yang tidak muncul di hasil pencarian internet.
 - Buat jawaban ringkas, jelas, realistis, dan tidak bertele-tele.
 - Jangan menulis markdown, jangan menulis tabel, jangan menulis teks di luar JSON.
 
@@ -937,8 +1033,15 @@ ${JSON.stringify(payload)}
       headers:{'Content-Type':'application/json','X-KosFlow-Token':token},
       body: JSON.stringify({model, prompt, temperature:.10})
     });
-    const ai = await rr.json();
-    if(!rr.ok) throw new Error(ai.error || 'Ollama gagal');
+    const ai = await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
+    if(!rr.ok){
+      throw new Error(
+        ai.detail ||
+        ai.ollama_error ||
+        ai.error ||
+        `Ollama gagal (HTTP ${rr.status})`
+      );
+    }
 
     step('done', 100, 'Menampilkan hasil');
 

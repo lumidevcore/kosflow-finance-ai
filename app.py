@@ -247,12 +247,43 @@ async def ddg_search(query, category, max_results=2):
     return result
 
 
+
 BANK_DOMAINS = {
-    "Bank Jago": "jago.com",
-    "Bank Saqu": "banksaqu.co.id",
-    "Bank Neo Commerce": "bankneo.co.id",
-    "Krom Bank": "krom.id",
+    "Bank Jago": ["jago.com"],
+    "Bank Saqu": ["banksaqu.co.id"],
+    "Bank Neo Commerce": ["bankneo.co.id", "bankneocommerce.co.id"],
+    "Krom Bank": ["krom.id"],
 }
+
+async def multi_search(query, category, domains=None, max_results=4):
+    """
+    Internet research helper.
+    Searches DuckDuckGo HTML and prefers official domains when supplied.
+    """
+    queries = []
+    if domains:
+        for domain in domains:
+            queries.append(f'{query} site:{domain}')
+    queries.append(query)
+
+    seen = set()
+    out = []
+
+    for q in queries:
+        for item in await ddg_search(q, category, max_results):
+            url = item.get("url", "")
+            key = (item.get("title", ""), url)
+            if key in seen:
+                continue
+            seen.add(key)
+            item["searched_query"] = q
+            item["official_hint"] = bool(
+                domains and any(d.lower() in url.lower() for d in domains)
+            )
+            out.append(item)
+            if len(out) >= max_results:
+                return out
+    return out
 
 
 async def bank_search(names_text):
@@ -260,15 +291,34 @@ async def bank_search(names_text):
     result = []
 
     for name in names:
-        domain = BANK_DOMAINS.get(name)
-        query = f'"{name}" bunga tabungan deposito suku bunga terbaru'
-        if domain:
-            query += f" site:{domain}"
+        domains = BANK_DOMAINS.get(name, [])
+        queries = [
+            f'"{name}" bunga tabungan terbaru',
+            f'"{name}" bunga deposito terbaru',
+            f'"{name}" suku bunga tabungan deposito minimum setoran',
+        ]
+        bank_items = []
+        seen = set()
 
-        result.extend(await ddg_search(query, "Bank digital • " + name, 2))
+        for q in queries:
+            items = await multi_search(
+                q,
+                "Bank digital • " + name,
+                domains=domains,
+                max_results=3,
+            )
+            for item in items:
+                key = item.get("url") or item.get("title")
+                if key in seen:
+                    continue
+                seen.add(key)
+                bank_items.append(item)
+
+        result.extend(bank_items[:5])
 
     return {
         "fetched_at": nowiso(),
+        "search_mode": "internet-web-search",
         "items": result,
     }
 
@@ -277,23 +327,59 @@ async def fund_search():
     searches = [
         (
             "Reksadana pasar uang",
-            "reksadana pasar uang return 1 tahun terbaru Indonesia "
-            "site:bareksa.com OR site:bibit.id",
+            [
+                "reksadana pasar uang return 1 tahun terbaru Indonesia",
+                "reksadana pasar uang kinerja terbaru minimum pembelian",
+            ],
+            ["bareksa.com", "bibit.id"],
         ),
         (
             "Reksadana pendapatan tetap",
-            "reksadana pendapatan tetap return 1 tahun terbaru Indonesia "
-            "site:bareksa.com OR site:bibit.id",
+            [
+                "reksadana pendapatan tetap return 1 tahun terbaru Indonesia",
+                "reksadana pendapatan tetap kinerja terbaru minimum pembelian",
+            ],
+            ["bareksa.com", "bibit.id"],
         ),
     ]
 
-    result = []
-    for category, query in searches:
-        result.extend(await ddg_search(query, category, 3))
+    out = []
+    for category, queries, domains in searches:
+        seen = set()
+        bucket = []
+        for q in queries:
+            items = await multi_search(q, category, domains, max_results=4)
+            for item in items:
+                key = item.get("url") or item.get("title")
+                if key in seen:
+                    continue
+                seen.add(key)
+                bucket.append(item)
+        out.extend(bucket[:5])
 
     return {
         "fetched_at": nowiso(),
-        "items": result[:6],
+        "search_mode": "internet-web-search",
+        "items": out[:10],
+    }
+
+
+async def combined_research(names_text, symbols_text):
+    """
+    Search the public web each time analysis is requested.
+    The local Ollama receives these fresh search results as context.
+    """
+    banks = await bank_search(names_text)
+    funds = await fund_search()
+    stocks = await stock_quotes(symbols_text)
+    crypto = await crypto_snapshot()
+
+    return {
+        "fetched_at": nowiso(),
+        "crypto": crypto,
+        "stocks": stocks,
+        "banks": banks,
+        "funds": funds,
     }
 
 
@@ -382,6 +468,20 @@ class KosFlowASGI:
 
             if path == "/api/funds":
                 return await send_json(send, await fund_search())
+
+            if path == "/api/research":
+                names = query.get(
+                    "banks",
+                    ["Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank"],
+                )[0]
+                symbols = query.get(
+                    "stocks",
+                    ["BBCA,BBRI,BMRI,TLKM"],
+                )[0]
+                return await send_json(
+                    send,
+                    await combined_research(names, symbols),
+                )
 
             if path in ("/", "/index.html"):
                 return await send_file(
