@@ -155,3 +155,14 @@ Perubahan UI:
 - Pilihan `Orang tua` atau `Campuran` tidak lagi menampilkan input nominal baru.
 - Nominal dana orang tua pada pilihan sumber pembayaran otomatis mengambil nilai dari form utama tersebut.
 - Tetap memakai kolom Supabase `kos_parent_contribution`.
+
+
+## Update v10.15 — Dana simulasi bank otomatis
+
+Tidak ada migration database baru.
+
+Perubahan:
+- Input `Dana simulasi` tidak lagi manual.
+- Nilainya otomatis mengikuti `Surplus Aman Investasi`.
+- Jika surplus aman investasi Rp0, simulasi bank juga Rp0.
+- Durasi dan frekuensi compounding tetap bisa dipilih manual.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.14</title>
+<title>KosFlow Finance v10.15</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -676,7 +676,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
               <option value="1">Tahunan</option>
             </select>
           </div>
-          <div class="range-help">AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
+          <div class="range-help">Dana simulasi otomatis memakai Surplus Aman Investasi. AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
         </div>
 
 
@@ -969,7 +969,7 @@ function gatherSettings(){
     ...getStockDiscoverySettings(),
     banks:document.getElementById('banks').value,
     bank_interest_ranges:getSelectedBankRateRanges(),
-    bank_simulation_amount:+document.getElementById('bankSimulationAmount').value||0,
+    bank_simulation_amount:0,
     bank_simulation_months:+document.getElementById('bankSimulationMonths').value||12,
     bank_compound_frequency:+document.getElementById('bankCompoundFrequency').value||12,
     market_simulation_months:+document.getElementById('marketSimulationMonths').value||12,
@@ -1528,6 +1528,11 @@ function updateAutoMoneyPreview(){
 
   const bufferEl=document.getElementById('buffer');
   if(bufferEl) bufferEl.value=Math.round(autoSafe);
+  const bankSimEl=document.getElementById('bankSimulationAmount');
+  if(bankSimEl){
+    // Nilai final akan disegarkan lagi setelah calcBudget menghitung safe investment.
+    bankSimEl.value = Math.max(0, Number(bankSimEl.value)||0);
+  }
 
   const p=document.getElementById('personalBalancePreview');
   if(p) p.textContent=idr(personalAfter);
@@ -1602,6 +1607,9 @@ function calcBudget(){
   // Dana investasi sekarang hanya dari saldo pribadi yang benar-benar ada,
   // setelah kebutuhan minggu berjalan dan dana aman otomatis.
   const safe = Math.max(0, personalCashAfterKos - needs - autoSafe);
+
+  const bankSimEl = document.getElementById('bankSimulationAmount');
+  if(bankSimEl) bankSimEl.value = Math.round(safe);
 
   const projectedWeeklySurplusMin = Math.max(0, allow + incomeMin - needs);
   const projectedWeeklySurplusMax = Math.max(0, allow + incomeMax - needs);
@@ -1771,7 +1779,7 @@ async function analyze(){
       stock_lot_budget: +document.getElementById('stockLotBudget').value,
       stock_recommendation_count: +document.getElementById('stockRecommendationCount').value,
       bank_interest_ranges: getSelectedBankRateRanges(),
-      bank_simulation_amount:+document.getElementById('bankSimulationAmount').value||0,
+      bank_simulation_amount:0,
       bank_simulation_months:+document.getElementById('bankSimulationMonths').value||12,
       bank_compound_frequency:+document.getElementById('bankCompoundFrequency').value||12,
       notes: document.getElementById('notes').value
@@ -1918,6 +1926,8 @@ ${JSON.stringify(payload)}
       budget.next_kos_payment_date ? formatDateID(parseLocalDate(budget.next_kos_payment_date)) : '—';
     document.getElementById('apps').textContent = `${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
     document.getElementById('safe').textContent = idr(budget.safe_investment_amount);
+    const autoBankSim=document.getElementById('bankSimulationAmount');
+    if(autoBankSim) autoBankSim.value=Math.round(budget.safe_investment_amount||0);
     document.getElementById('personalAvailableHero').textContent = idr(budget.personal_available_balance);
     document.getElementById('parentKosHero').textContent = idr(budget.kos_parent_contribution);
     updateAutoMoneyPreview();
@@ -2013,11 +2023,11 @@ document.getElementById('buffer').addEventListener('input', e=>{
   document.getElementById('miniSafe').textContent = idr(+e.target.value||0);
   document.getElementById('miniSafe2').textContent = idr(+e.target.value||0);
 });
-['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','bankSimulationAmount','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct','notes','kosSource','model'].forEach(id=>{
+['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct','notes','kosSource','model'].forEach(id=>{
   const el=document.getElementById(id); if(el){el.addEventListener('input',scheduleSave);el.addEventListener('change',scheduleSave)}
 });
 
-['bankSimulationAmount','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct'].forEach(id=>{
+['bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct'].forEach(id=>{
   const el=document.getElementById(id);
   if(el) el.addEventListener('change',()=>{
     try{const saved=JSON.parse(localStorage.getItem(ANALYSIS_KEY)||'null');if(saved?.parsed&&saved?.budget)renderBankSimulation(saved.parsed,saved.budget)}catch(e){}

@@ -1,4 +1,4 @@
--- KosFlow Finance v10.14 - Supabase schema
+-- KosFlow Finance v10.15 - Supabase schema
 -- Jalankan seluruh file ini di Supabase > SQL Editor > New query > Run.
 
 create extension if not exists pgcrypto;
@@ -118,13 +118,13 @@ alter table public.research_sources enable row level security;
 -- Tidak membuat policy publik. Service role backend tetap dapat mengakses data.
 
 
--- v10.14 migration: multi-select range bunga bank
+-- v10.15 migration: multi-select range bunga bank
 alter table public.finance_settings
   add column if not exists bank_interest_ranges jsonb
   not null default '["0.5-4","4-6"]'::jsonb;
 
 
--- v10.14 migration: pendapatan manual + pembagian pembayaran kos
+-- v10.15 migration: pendapatan manual + pembagian pembayaran kos
 alter table public.finance_settings
   add column if not exists income_weekly_min numeric(18,2) not null default 0;
 alter table public.finance_settings
@@ -135,7 +135,7 @@ alter table public.finance_settings
   add column if not exists kos_parent_contribution numeric(18,2) not null default 0;
 
 
--- v10.14 migration: periode berlakunya pembagian pembayaran kos
+-- v10.15 migration: periode berlakunya pembagian pembayaran kos
 alter table public.finance_settings
   add column if not exists kos_cycle_start date;
 alter table public.finance_settings
@@ -143,13 +143,13 @@ alter table public.finance_settings
   not null default 'current_cycle';
 
 
--- v10.14 migration: simulasi penempatan bank & compounding
+-- v10.15 migration: simulasi penempatan bank & compounding
 alter table public.finance_settings add column if not exists bank_simulation_amount numeric(18,2) not null default 0;
 alter table public.finance_settings add column if not exists bank_simulation_months integer not null default 12;
 alter table public.finance_settings add column if not exists bank_compound_frequency integer not null default 12;
 
 
--- v10.14 migration: simulasi harga crypto/saham
+-- v10.15 migration: simulasi harga crypto/saham
 alter table public.finance_settings
   add column if not exists market_simulation_months integer not null default 12;
 alter table public.finance_settings
