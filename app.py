@@ -542,7 +542,7 @@ async def combined_research(names_text, symbols_text, rate_ranges_text='', stock
             if item.get("price") is not None:
                 item["lot_size"] = 100
                 item["lot_cost"] = float(item["price"]) * 100.0
-        stocks["mode"] = "manual
+        stocks["mode"] = "manual"
     crypto = await crypto_snapshot()
 
     return {
