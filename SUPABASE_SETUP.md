@@ -144,3 +144,14 @@ Perubahan memakai kolom yang sudah ada:
 - `kos_parent_contribution` = dana orang tua khusus kos
 
 Jadi migration SQL baru tidak diperlukan untuk v10.13.
+
+
+## Update v10.14 — Dana orang tua dipindah ke form utama
+
+Tidak ada migration database baru.
+
+Perubahan UI:
+- `Dana orang tua khusus kos` sekarang diisi sekali di bagian atas, dekat saldo pribadi dan uang saku.
+- Pilihan `Orang tua` atau `Campuran` tidak lagi menampilkan input nominal baru.
+- Nominal dana orang tua pada pilihan sumber pembayaran otomatis mengambil nilai dari form utama tersebut.
+- Tetap memakai kolom Supabase `kos_parent_contribution`.

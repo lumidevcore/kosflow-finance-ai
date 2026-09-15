@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.13</title>
+<title>KosFlow Finance v10.14</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -499,6 +499,12 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           </div>
         </div>
 
+        <div class="field">
+          <label>Dana orang tua khusus kos</label>
+          <input id="kosParentContribution" type="number" value="0" min="0" step="1000" />
+          <div class="range-help">Isi dana orang tua di sini sekali saja. Pilihan sumber pembayaran kos di bawah hanya menentukan apakah dana ini dipakai untuk pembayaran kos periode tersebut.</div>
+        </div>
+
         <div class="grid2">
           <div class="field">
             <label>Pendapatan tambahan/app per minggu — minimum</label>
@@ -538,9 +544,10 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
             <label>Kontribusi kos dari saldo pribadi</label>
             <input id="kosSelfContribution" type="number" value="330000" min="0" step="1000" />
           </div>
-          <div class="field hidden" id="parentKosField">
-            <label>Dana orang tua khusus kos</label>
-            <input id="kosParentContribution" type="number" value="0" min="0" step="1000" />
+          <div class="note hidden" id="parentKosField" style="margin-bottom:14px">
+            <b>Dana orang tua yang akan dipakai</b><br>
+            <span id="parentKosUsePreview">Rp0</span>
+            <div class="range-help">Nominal diambil otomatis dari form “Dana orang tua khusus kos” di bagian atas.</div>
           </div>
           <div class="note" id="kosFundingHint" style="margin-bottom:14px">
             Nominal pembayaran kos dipisahkan dari uang saku mingguan.
@@ -888,15 +895,20 @@ function syncKosFundingUI(){
   const mode=document.getElementById('kosSource')?.value || 'self';
   const selfField=document.getElementById('selfKosField');
   const parentField=document.getElementById('parentKosField');
+  const parentValue=+document.getElementById('kosParentContribution')?.value||0;
   if(selfField) selfField.classList.toggle('hidden', mode==='parent');
   if(parentField) parentField.classList.toggle('hidden', mode==='self');
+
+  const parentPreview=document.getElementById('parentKosUsePreview');
+  if(parentPreview) parentPreview.textContent=idr(parentValue);
+
   const hint=document.getElementById('kosFundingHint');
   if(hint){
     hint.textContent = mode==='mixed'
-      ? 'Isi kontribusi kos dari saldo pribadi dan dana orang tua secara terpisah. Dana orang tua tidak pernah digabung ke saldo pribadi, uang saku, dana aman, atau modal investasi.'
+      ? 'Campuran memakai kontribusi saldo pribadi + dana orang tua yang sudah diisi pada form di atas.'
       : mode==='parent'
-      ? 'Isi nominal yang dibayarkan orang tua. Saldo pribadimu tidak dikurangi oleh bagian ini.'
-      : 'Isi nominal yang benar-benar kamu bayarkan dari uang sendiri.';
+      ? 'Pembayaran kos memakai dana orang tua dari form di atas. Saldo pribadi tidak ikut dikurangi.'
+      : 'Pembayaran kos memakai kontribusi dari saldo pribadi saja.';
   }
 }
 function addOneCalendarMonth(dateStr){
@@ -1377,11 +1389,18 @@ updateKosScopeHint();
 ['allowance','needs','cash','kosSelfContribution','kosParentContribution','kosSource'].forEach(id=>{
   const el=document.getElementById(id);
   if(el){
-    el.addEventListener('input', updateAutoMoneyPreview);
-    el.addEventListener('change', updateAutoMoneyPreview);
+    el.addEventListener('input', ()=>{
+      updateAutoMoneyPreview();
+      syncKosFundingUI();
+    });
+    el.addEventListener('change', ()=>{
+      updateAutoMoneyPreview();
+      syncKosFundingUI();
+    });
   }
 });
 updateAutoMoneyPreview();
+syncKosFundingUI();
 
 startCrypto();
 });
@@ -1832,7 +1851,7 @@ Aturan:
 - Jika mode campuran, pembayaran awal berasal dari saldo sendiri sedangkan sisa kos ditanggung orang tua.
 - Perhatikan kos_funding_scope: jika current_cycle, pembagian pembayaran hanya berlaku pada periode kos yang tercantum dan jangan diasumsikan berlanjut bulan berikutnya. Jika ongoing, barulah boleh diasumsikan berulang tiap periode bulanan sampai diubah pengguna.
 - Fakta bahwa orang tua menanggung sebagian/seluruh kos HANYA mengurangi beban pengeluaran pengguna.
-- Dana orang tua untuk kos adalah kantong terpisah dan TIDAK boleh dianggap sebagai saldo pribadi, dana aman, atau modal investasi.
+- Dana orang tua untuk kos berasal dari form terpisah di bagian atas dan merupakan kantong terpisah. TIDAK boleh dianggap sebagai saldo pribadi, dana aman, atau modal investasi.
 - Gunakan personal_available_balance untuk saldo pribadi yang masih tersedia.
 - Gunakan kos_parent_contribution hanya untuk kewajiban kos yang ditanggung orang tua.
 - auto_safe_fund dihitung otomatis dari uang saku mingguan dikurangi kebutuhan mingguan; jangan mencampurnya dengan kontribusi orang tua. Jangan pernah menulis seolah-olah "uang kos dari orang tua dimanfaatkan untuk investasi".
