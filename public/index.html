@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.1</title>
+<title>KosFlow Finance v10.2</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -76,8 +76,8 @@ body{
 .market-board:hover .ticker-track{animation-play-state:paused}
 @keyframes slideBillboard{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .market-card{
-  position:relative;overflow:hidden;min-height:162px;width:312px;
-  border-radius:24px;padding:18px;
+  position:relative;overflow:hidden;min-height:178px;width:312px;
+  border-radius:24px;padding:18px 18px 76px;
   background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(244,248,255,.93));
   border:1px solid rgba(35,61,102,.08);
   box-shadow:0 16px 34px rgba(88,114,160,.10);
@@ -93,8 +93,47 @@ body{
 .market-card .sym{font-size:12px;font-weight:800;color:#7386a5;letter-spacing:.08em;text-transform:uppercase}
 .market-card .price{font-size:31px;line-height:1.05;font-weight:950;margin:12px 0 6px;color:#17243a}
 .market-card .chg{font-size:13px;font-weight:800}
-.market-card .meta{font-size:12px;color:#7a8da9;margin-top:9px;line-height:1.55}
-.market-card svg{position:absolute;right:10px;bottom:10px;width:46%;height:60px;opacity:.92}
+.market-card .meta{
+  font-size:12px;
+  color:#7a8da9;
+  margin-top:9px;
+  line-height:1.45;
+  max-width:100%;
+}
+.market-card svg{
+  position:absolute;
+  left:18px;
+  bottom:14px;
+  width:calc(100% - 36px);
+  height:44px;
+  opacity:.95;
+  pointer-events:none;
+  z-index:2;
+}
+.market-card.live{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.98) 0%,rgba(248,251,255,.98) 62%,rgba(239,246,255,.99) 100%);
+}
+.market-card.live:before{
+  content:"";
+  position:absolute;
+  left:14px;
+  right:14px;
+  bottom:9px;
+  height:54px;
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(85,104,255,.025),rgba(40,194,255,.065));
+  border:1px solid rgba(85,104,255,.05);
+  pointer-events:none;
+  z-index:1;
+}
+.market-card.live .sym,
+.market-card.live .price,
+.market-card.live .chg,
+.market-card.live .meta{
+  position:relative;
+  z-index:3;
+}
 .up{color:var(--green)}
 .down{color:var(--red)}
 .neutral{color:#8090ab}
@@ -267,21 +306,21 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <div class="sym">BTC • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga crypto live dari stream market</div>
+          <div class="meta">Live market stream</div>
           <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
         <article class="market-card live" id="coin-ETH">
           <div class="sym">ETH • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga crypto live dari stream market</div>
+          <div class="meta">Live market stream</div>
           <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
         <article class="market-card live" id="coin-SOL">
           <div class="sym">SOL • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga crypto live dari stream market</div>
+          <div class="meta">Live market stream</div>
           <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
         <article class="market-card mini">
@@ -307,21 +346,21 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <div class="sym">BTC • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga crypto live dari stream market</div>
+          <div class="meta">Live market stream</div>
           <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
         <article class="market-card live" id="coin-ETH-2">
           <div class="sym">ETH • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga crypto live dari stream market</div>
+          <div class="meta">Live market stream</div>
           <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
         <article class="market-card live" id="coin-SOL-2">
           <div class="sym">SOL • LIVE</div>
           <div class="price" data-price>Memuat...</div>
           <div class="chg neutral" data-change>—</div>
-          <div class="meta">Harga crypto live dari stream market</div>
+          <div class="meta">Live market stream</div>
           <svg viewBox="0 0 180 60"><polyline data-line fill="none" stroke="currentColor" stroke-width="2.5" points=""></polyline></svg>
         </article>
         <article class="market-card mini">
