@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.23.1</title>
+<title>KosFlow Finance v10.24</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -1954,7 +1954,7 @@ async function analyze(){
     const crypto = await (await fetch('/api/crypto-snapshot',{cache:'no-store'})).json();
 
     step('stocks', 38, 'Mencari saham IDX dan sumber pasar di internet');
-    step('banks', 52, 'Mencari Jago, Saqu, Neo, Krom, dan SeaBank di web internet');
+    step('banks', 52, 'Mencari Jago, Saqu, Neo, Krom, SeaBank, dan Superbank secara paralel');
     step('funds', 66, 'Mencari reksadana dan performa terbaru di web internet');
 
     const researchUrl = '/api/research?banks='
@@ -1970,7 +1970,25 @@ async function analyze(){
       + '&bank_rate_ranges='
       + encodeURIComponent(getSelectedBankRateRanges().join(','));
 
-    const researchPack = await (await fetch(researchUrl,{cache:'no-store'})).json();
+    const researchController = new AbortController();
+    const researchTimer = setTimeout(()=>researchController.abort(), 35000);
+    let researchPack = {};
+    try{
+      const researchRes = await fetch(researchUrl,{cache:'no-store',signal:researchController.signal});
+      const researchJson = await researchRes.json().catch(()=>({}));
+      if(!researchRes.ok) throw new Error(researchJson.detail || researchJson.error || `HTTP ${researchRes.status}`);
+      researchPack = researchJson || {};
+    }catch(e){
+      console.warn('Research partial fallback:', e);
+      researchPack = {
+        fetched_at:new Date().toISOString(),
+        stocks:{items:[],candidates:[],warning:'research unavailable'},
+        banks:{items:[],warning:'research unavailable'},
+        funds:{items:[],warning:'research unavailable'},
+        warning:e.name==='AbortError' ? 'Riset melewati batas 35 detik' : e.message
+      };
+      step('match', 78, 'Sebagian sumber lambat — lanjut dengan data yang tersedia');
+    }finally{ clearTimeout(researchTimer); }
     const stocks = researchPack.stocks || {items:[]};
     const banks = researchPack.banks || {items:[]};
     const funds = researchPack.funds || {items:[]};
@@ -2233,7 +2251,7 @@ ${JSON.stringify(payload)}
     document.getElementById('bankSimulationWrap').classList.remove('hidden');
     document.getElementById('aiWrap').classList.remove('hidden');
   }catch(e){
-    alert(e.message);
+    console.error(e); document.getElementById('placeholder').classList.remove('hidden'); document.getElementById('placeholder').textContent='Analisis belum selesai: '+e.message;
     document.getElementById('progress').classList.add('hidden');
     document.getElementById('placeholder').classList.remove('hidden');
   }finally{

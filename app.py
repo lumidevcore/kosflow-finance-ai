@@ -421,108 +421,56 @@ async def multi_search(query, category, domains=None, max_results=4):
     return out
 
 
-async def bank_search(names_text, rate_ranges_text=''):
-    names = [x.strip() for x in names_text.split(",") if x.strip()][:10]
-    selected_ranges = [x.strip() for x in rate_ranges_text.split(",") if x.strip()]
-    result = []
-
-    for name in names:
-        domains = BANK_DOMAINS.get(name, [])
-        bank_items = []
-        seen = set()
-
-        # 1) Direct fetch from known official pages first.
-        for item in await fetch_official_bank_pages(name):
+async def _bank_search_one(name, selected_ranges):
+    domains = BANK_DOMAINS.get(name, [])
+    bank_items = []
+    seen = set()
+    try:
+        official = await asyncio.wait_for(fetch_official_bank_pages(name), timeout=8)
+    except Exception:
+        official = []
+    for item in official:
+        key = item.get("url") or item.get("title")
+        if key in seen: continue
+        seen.add(key); bank_items.append(item)
+    has_rate = any(item.get("rate_facts") for item in bank_items)
+    if not has_rate:
+        range_hint = " ".join(selected_ranges[:2])
+        q = f'"{name}" bunga tabungan deposito terbaru {range_hint}'.strip()
+        try:
+            items = await asyncio.wait_for(multi_search(q, "Bank digital • " + name, domains=domains, max_results=3), timeout=8)
+        except Exception:
+            items = []
+        for item in items:
             key = item.get("url") or item.get("title")
-            if key in seen:
-                continue
-            seen.add(key)
-            bank_items.append(item)
+            if key in seen: continue
+            seen.add(key); item.setdefault("source_type","web-search"); _attach_rate_facts(item); bank_items.append(item)
+    bank_items.sort(key=lambda x:(0 if x.get("official_hint") else 1,0 if x.get("rate_facts") else 1,0 if x.get("source_type")=="official-direct" else 1))
+    return bank_items[:4]
 
-        # 2) Internet search fallback / expansion.
-        queries = [
-            f'"{name}" bunga tabungan terbaru',
-            f'"{name}" bunga deposito terbaru',
-            f'"{name}" suku bunga tabungan deposito minimum setoran',
-            f'"{name}" rates bunga simpanan terbaru',
-        ]
-        for rr in selected_ranges:
-            queries.append(f'"{name}" bunga {rr}% tabungan deposito terbaru')
-
-        for q in queries:
-            items = await multi_search(
-                q,
-                "Bank digital • " + name,
-                domains=domains,
-                max_results=4,
-            )
-            for item in items:
-                key = item.get("url") or item.get("title")
-                if key in seen:
-                    continue
-                seen.add(key)
-                item.setdefault("source_type", "web-search")
-                _attach_rate_facts(item)
-                bank_items.append(item)
-
-        # Keep official results first, then fallback search results.
-        bank_items.sort(
-            key=lambda x: (
-                0 if x.get("official_hint") else 1,
-                0 if x.get("source_type") == "official-direct" else 1,
-            )
-        )
-
-        result.extend(bank_items[:6])
-
-    return {
-        "fetched_at": nowiso(),
-        "search_mode": "official-direct+internet-web-search",
-        "banks_requested": names,
-        "selected_interest_ranges": selected_ranges,
-        "items": result,
-    }
+async def bank_search(names_text, rate_ranges_text=''):
+    names=[x.strip() for x in names_text.split(',') if x.strip()][:10]
+    selected_ranges=[x.strip() for x in rate_ranges_text.split(',') if x.strip()]
+    chunks=await asyncio.gather(*(_bank_search_one(name,selected_ranges) for name in names),return_exceptions=True)
+    result=[]
+    for chunk in chunks:
+        if isinstance(chunk,list): result.extend(chunk)
+    return {"fetched_at":nowiso(),"search_mode":"fast-official-first+single-web-fallback","banks_requested":names,"selected_interest_ranges":selected_ranges,"items":result}
 
 async def fund_search():
-    searches = [
-        (
-            "Reksadana pasar uang",
-            [
-                "reksadana pasar uang return 1 tahun terbaru Indonesia",
-                "reksadana pasar uang kinerja terbaru minimum pembelian",
-            ],
-            ["bareksa.com", "bibit.id"],
-        ),
-        (
-            "Reksadana pendapatan tetap",
-            [
-                "reksadana pendapatan tetap return 1 tahun terbaru Indonesia",
-                "reksadana pendapatan tetap kinerja terbaru minimum pembelian",
-            ],
-            ["bareksa.com", "bibit.id"],
-        ),
-    ]
-
-    out = []
-    for category, queries, domains in searches:
-        seen = set()
-        bucket = []
-        for q in queries:
-            items = await multi_search(q, category, domains, max_results=4)
-            for item in items:
-                key = item.get("url") or item.get("title")
-                if key in seen:
-                    continue
-                seen.add(key)
-                bucket.append(item)
-        out.extend(bucket[:5])
-
-    return {
-        "fetched_at": nowiso(),
-        "search_mode": "internet-web-search",
-        "items": out[:10],
-    }
-
+    jobs=[("Reksadana pasar uang","reksadana pasar uang return 1 tahun terbaru Indonesia",["bareksa.com","bibit.id"]),("Reksadana pendapatan tetap","reksadana pendapatan tetap return 1 tahun terbaru Indonesia",["bareksa.com","bibit.id"])]
+    async def one(category,q,domains):
+        try: return await asyncio.wait_for(multi_search(q,category,domains,max_results=3),timeout=8)
+        except Exception: return []
+    chunks=await asyncio.gather(*(one(category,q,domains) for category,q,domains in jobs),return_exceptions=True)
+    out=[]; seen=set()
+    for chunk in chunks:
+        if not isinstance(chunk,list): continue
+        for item in chunk:
+            key=item.get("url") or item.get("title")
+            if key in seen: continue
+            seen.add(key); out.append(item)
+    return {"fetched_at":nowiso(),"search_mode":"fast-internet-web-search","items":out[:6]}
 
 
 def _parse_dividend_per_share(text):
@@ -569,13 +517,15 @@ async def find_dividend_info(symbol, price=None):
 
 
 async def enrich_dividends(items):
-    for item in items:
+    async def one(item):
         try:
-            info=await find_dividend_info(item.get('symbol',''), item.get('price'))
+            info=await asyncio.wait_for(find_dividend_info(item.get('symbol',''),item.get('price')),timeout=7)
             item.update(info)
         except Exception:
             pass
-    return items
+        return item
+    if not items: return items
+    return list(await asyncio.gather(*(one(item) for item in items)))
 
 
 IDX_CANDIDATE_UNIVERSE = [
@@ -587,80 +537,43 @@ IDX_CANDIDATE_UNIVERSE = [
 ]
 
 async def discover_affordable_stocks(max_lot_budget, limit=5):
-    try:
-        budget = float(max_lot_budget or 0)
-    except Exception:
-        budget = 0
-    limit = max(1, min(int(limit or 5), 10))
-
-    items = []
-    # Query a curated, liquid-ish IDX universe using existing quote function.
-    for symbol in IDX_CANDIDATE_UNIVERSE:
-        try:
+    try: budget=float(max_lot_budget or 0)
+    except Exception: budget=0
+    limit=max(1,min(int(limit or 5),10)); sem=asyncio.Semaphore(10)
+    async def quote_one(symbol):
+        async with sem:
             try:
-                item = await google_finance(symbol)
-            except Exception:
-                item = await yahoo_finance(symbol)
-            price = item.get("price")
-            if price is None:
-                continue
-            lot_cost = float(price) * 100.0
-            item["lot_cost"] = lot_cost
-            item["lot_size"] = 100
-            if budget <= 0 or lot_cost <= budget:
-                items.append(item)
-        except Exception:
-            continue
-
-    # Prefer prices closest to but not above budget, then milder negative/positive move.
-    items.sort(
-        key=lambda x: (
-            -(x.get("lot_cost") or 0),
-            abs(float(x.get("change_percent") or 0)),
-        )
-    )
-    picked=items[:limit]
-    await enrich_dividends(picked)
-    return picked
-
+                try: item=await asyncio.wait_for(google_finance(symbol),timeout=5)
+                except Exception: item=await asyncio.wait_for(yahoo_finance(symbol),timeout=5)
+                price=item.get("price")
+                if price is None: return None
+                item["lot_cost"]=float(price)*100.0; item["lot_size"]=100; return item
+            except Exception: return None
+    raw=await asyncio.gather(*(quote_one(symbol) for symbol in IDX_CANDIDATE_UNIVERSE),return_exceptions=True)
+    items=[x for x in raw if isinstance(x,dict) and (budget<=0 or float(x.get("lot_cost") or 0)<=budget)]
+    items.sort(key=lambda x:(-(x.get("lot_cost") or 0),abs(float(x.get("change_percent") or 0))))
+    picked=items[:limit]; await enrich_dividends(picked); return picked
 
 async def combined_research(names_text, symbols_text, rate_ranges_text='', stock_lot_mode='manual', stock_lot_budget=0, stock_recommendation_count=5):
-    """
-    Search the public web each time analysis is requested.
-    The local Ollama receives these fresh search results as context.
-    """
-    banks = await bank_search(names_text, rate_ranges_text)
-    funds = await fund_search()
-    if stock_lot_mode == "auto":
-        candidates = await discover_affordable_stocks(stock_lot_budget, stock_recommendation_count)
-        stocks = {
-            "fetched_at": nowiso(),
-            "mode": "auto-1-lot",
-            "lot_size": 100,
-            "max_lot_budget": float(stock_lot_budget or 0),
-            "candidates": candidates,
-            "items": candidates,
-            "note": "Auto-discovered IDX candidates whose estimated 1 lot cost fits the selected budget."
-        }
-    else:
-        stocks = await stock_quotes(symbols_text)
-        for item in stocks.get("items", []):
+    async def get_stocks():
+        if stock_lot_mode=="auto":
+            candidates=await discover_affordable_stocks(stock_lot_budget,stock_recommendation_count)
+            return {"fetched_at":nowiso(),"mode":"auto-search-only","lot_size":100,"max_lot_budget":float(stock_lot_budget or 0),"candidates":candidates,"items":candidates,"note":"Candidate search only. No balance is deducted."}
+        stocks=await stock_quotes(symbols_text)
+        for item in stocks.get("items",[]):
             if item.get("price") is not None:
-                item["lot_size"] = 100
-                item["lot_cost"] = float(item["price"]) * 100.0
-        stocks["mode"] = "manual"
-        await enrich_dividends(stocks.get("items", []))
-    crypto = await crypto_snapshot()
-
-    return {
-        "fetched_at": nowiso(),
-        "research_mode": "official bank pages + internet search + market APIs",
-        "crypto": crypto,
-        "stocks": stocks,
-        "banks": banks,
-        "funds": funds,
-    }
-
+                item["lot_size"]=100; item["lot_cost"]=float(item["price"])*100.0
+        stocks["mode"]="manual"; await enrich_dividends(stocks.get("items",[])); return stocks
+    async def bounded(coro,timeout,fallback):
+        try: return await asyncio.wait_for(coro,timeout=timeout)
+        except Exception as exc:
+            result=dict(fallback); result["warning"]=type(exc).__name__; return result
+    banks,funds,stocks=await asyncio.gather(
+        bounded(bank_search(names_text,rate_ranges_text),18,{"fetched_at":nowiso(),"items":[],"search_mode":"timeout-fallback"}),
+        bounded(fund_search(),12,{"fetched_at":nowiso(),"items":[],"search_mode":"timeout-fallback"}),
+        bounded(get_stocks(),22,{"fetched_at":nowiso(),"items":[],"candidates":[],"mode":stock_lot_mode}),
+    )
+    return {"fetched_at":nowiso(),"research_mode":"parallel-bounded-v10.24","stocks":stocks,"banks":banks,"funds":funds}
 
 async def send_json(send, data, status=200):
     body = json.dumps(data, ensure_ascii=False).encode("utf-8")

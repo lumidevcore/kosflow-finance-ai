@@ -168,99 +168,11 @@ Perubahan:
 - Durasi dan frekuensi compounding tetap bisa dipilih manual.
 
 
-## Update v10.16 — Generate Catatan AI
+## Update v10.24 — Fix 504 Gateway Timeout /api/research
 
 Tidak ada migration database baru.
 
-Fitur:
-- Tombol `Generate Catatan AI` membuat isi Catatan otomatis dari input form terbaru.
-- AI membaca saldo pribadi, uang saku, pendapatan tambahan, kebutuhan, dana aman otomatis, pembayaran kos, dana orang tua, profil risiko, pilihan saham, bank, dan simulasi.
-- Hasil Catatan bisa diedit manual setelah dibuat.
-- Catatan tetap disimpan menggunakan field `notes` yang sudah ada.
-
-
-## Update v10.17 — Perbaikan Dana Simulasi Otomatis
-
-Tidak ada migration database baru.
-
-Perubahan logika:
-- Dana aman adalah proyeksi periode berikutnya: `uang saku - kebutuhan mingguan`.
-- Dana aman proyeksi tidak lagi dikurangkan dari saldo pribadi saat ini.
-- Dana simulasi bank otomatis memakai nilai konservatif `uang saku - kebutuhan`.
-- Pendapatan aplikasi tidak otomatis dimasukkan ke dana simulasi agar proyeksi tidak terlalu optimistis.
-- Saldo pribadi, dana orang tua, dan dana periode berikutnya tetap dipisahkan.
-
-
-## Update v10.18 — Dana simulasi mengikuti saldo pribadi aktual
-
-Tidak ada migration database baru.
-
-Perubahan logika:
-- `Saldo pribadi sekarang` tetap diisi sesuai total aktual e-wallet + rekening yang benar-benar tersedia.
-- `Proyeksi sisa uang saku / minggu` = uang saku - kebutuhan. Nilai ini hanya proyeksi dan tidak dipakai sebagai modal simulasi bank.
-- `Surplus Aman Investasi` dihitung dari saldo pribadi aktual setelah pembayaran kos pribadi dan kebutuhan berjalan.
-- `Dana simulasi bank` otomatis mengikuti `Surplus Aman Investasi`.
-- Jika saldo pribadi kamu berubah setelah cek e-wallet/rekening, update angka `Saldo pribadi sekarang`; seluruh perhitungan ikut berubah otomatis.
-
-
-## Update v10.19 — Saham hanya pencarian, bukan input uang
-
-Tidak ada migration database baru.
-
-Perubahan:
-- Input `Maksimum dana untuk 1 lot` dihapus dari UI.
-- Pencarian saham otomatis tidak pernah mengurangi saldo pribadi, surplus aman investasi, atau dana simulasi bank.
-- Jika ada surplus aman investasi, nilainya hanya dipakai sebagai batas pencarian kandidat 1 lot.
-- Jika surplus = 0, sistem tetap boleh mencari kandidat saham sebagai informasi, tanpa menganggap pengguna sudah punya dana untuk membeli.
-- Ringkasan menampilkan rumus surplus agar mudah dicek.
-
-
-## Update v10.20 — Saham hanya pencarian + hitung kebutuhan dana + live recalculation
-
-Tidak ada migration database baru.
-
-Perubahan:
-- Kandidat saham menampilkan harga per lembar, biaya 1 lot, status cukup/kurang dana, dan kekurangan dana.
-- Pencarian saham tidak mengurangi saldo, surplus, atau dana simulasi.
-- Nilai yang sebelumnya tampil `0` sekarang dihitung ulang otomatis saat saldo pribadi, kebutuhan, kos, kontribusi pribadi/orang tua, atau uang saku berubah.
-- Dana simulasi bank ikut diperbarui otomatis dari surplus aktual.
-
-
-## Update v10.21 — Dana aman mengikuti saldo aktual
-
-Tidak ada migration database baru.
-
-Perubahan logika:
-- Dana aman otomatis = saldo pribadi aktual setelah pembayaran kos pribadi − kebutuhan mingguan.
-- Input `Kebutuhan / minggu` berfungsi sebagai pengurang dana yang benar-benar tersedia.
-- Uang saku tetap dicatat sebagai pemasukan mingguan, tetapi tidak lagi menjadi dasar utama dana aman.
-- Dana simulasi bank otomatis mengikuti dana aman aktual yang sama.
-- Pencarian saham tetap hanya informasional dan tidak pernah mengurangi saldo.
-- Jika saldo pribadi diubah (misalnya dari Rp400.000 menjadi Rp4.000.000), dana aman dan dana simulasi langsung dihitung ulang otomatis.
-
-
-## Update v10.22 — Penjelasan kebutuhan mingguan
-
-Tidak ada migration database baru.
-
-Perubahan UI:
-- Label `Kebutuhan / minggu` diganti menjadi `Kebutuhan minggu ini (7 hari)`.
-- Nilai ini berarti total kebutuhan untuk 7 hari yang sedang berjalan.
-- Digunakan sebagai pengurang saldo pribadi saat menghitung Dana Aman Otomatis.
-- Field Supabase tetap memakai kolom `weekly_needs`, jadi tidak ada perubahan schema.
-
-
-## Update v10.23 — Dana aman benar-benar mengikuti saldo pribadi
-
-Tidak ada migration database baru.
-
-Perubahan:
-- Dana Aman Otomatis memakai rumus: saldo pribadi aktual - pembayaran kos dari saldo pribadi - kebutuhan minggu ini.
-- Uang saku tidak menjadi dasar Dana Aman Otomatis.
-- Rumus ditampilkan langsung di bawah field agar mudah dicek.
-- Dana simulasi bank selalu mengikuti Dana Aman Otomatis.
-- Semua nilai dihitung ulang saat saldo, kebutuhan, kontribusi kos, atau sumber pembayaran berubah.
-
-Contoh:
-Saldo pribadi Rp600.000, pembayaran kos pribadi Rp330.000, kebutuhan Rp0
-→ Dana Aman Otomatis = Rp270.000.
+- Bank, reksadana, dan saham diproses paralel.
+- Scan saham dan dividen tidak lagi serial.
+- Tiap cabang riset punya timeout dan hasil parsial.
+- Frontend membatasi riset 35 detik dan tetap melanjutkan analisis jika sumber lambat.
