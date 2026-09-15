@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.24</title>
+<title>KosFlow Finance v10.25</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -650,6 +650,32 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <div class="range-help">Bisa pilih satu, dua, atau semua range sekaligus. AI akan memprioritaskan produk bank yang bunga terbarunya masuk ke range pilihanmu.</div>
         </div>
 
+
+        <div class="field">
+          <label>Kategori reksadana yang dicari</label>
+          <div class="interest-range-box" id="fundCategories">
+            <label class="interest-chip">
+              <input type="checkbox" name="fundCategory" value="money_market" checked />
+              <span><b>Pasar Uang</b><small>Risiko relatif rendah</small></span>
+            </label>
+            <label class="interest-chip">
+              <input type="checkbox" name="fundCategory" value="fixed_income" checked />
+              <span><b>Pendapatan Tetap</b><small>Obligasi / surat utang</small></span>
+            </label>
+            <label class="interest-chip">
+              <input type="checkbox" name="fundCategory" value="mixed" checked />
+              <span><b>Campuran</b><small>Saham + obligasi + pasar uang</small></span>
+            </label>
+            <label class="interest-chip">
+              <input type="checkbox" name="fundCategory" value="equity" checked />
+              <span><b>Saham</b><small>Potensi & risiko lebih tinggi</small></span>
+            </label>
+          </div>
+          <div class="range-help">
+            Cakupan: <b>Semua Manajer Investasi</b>. Pencarian tidak dibatasi Syailendra, BNI AM, atau daftar MI tertentu; backend melakukan discovery lintas internet dan platform reksadana untuk kategori yang dipilih.
+          </div>
+        </div>
+
         <div class="field">
           <label>Simulasi penempatan dana di bank</label>
           <div class="grid2">
@@ -789,6 +815,15 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         <div class="grid4" id="stockCandidates"></div>
       </section>
 
+      <section class="card section hidden" id="fundDiscoveryWrap">
+        <div class="sec-head">
+          <h3>Reksadana • Semua Manajer Investasi</h3>
+          <span id="fundCoverageMeta">Discovery internet</span>
+        </div>
+        <div class="grid4" id="fundDiscoveryGrid"></div>
+        <div class="footer-tip">Hasil berasal dari sumber internet yang berhasil ditemukan saat analisis. Return historis bukan jaminan hasil masa depan; cek fund fact sheet/prospektus resmi sebelum membeli.</div>
+      </section>
+
       <section class="card section hidden" id="researchWrap">
         <div class="sec-head">
           <h3>Data Internet & Referensi</h3>
@@ -894,6 +929,48 @@ function getStockDiscoverySettings(){
   };
 }
 
+function getSelectedFundCategories(){
+  return [...document.querySelectorAll('input[name="fundCategory"]:checked')].map(x=>x.value);
+}
+function applyFundCategories(categories){
+  if(!Array.isArray(categories) || !categories.length) return;
+  document.querySelectorAll('input[name="fundCategory"]').forEach(cb=>{
+    cb.checked = categories.includes(cb.value);
+  });
+}
+function fundCategoryLabel(v){
+  return {
+    money_market:'Pasar Uang',
+    fixed_income:'Pendapatan Tetap',
+    mixed:'Campuran',
+    equity:'Saham'
+  }[v] || v || 'Reksadana';
+}
+function renderFundReturnFacts(item){
+  const facts=Array.isArray(item?.return_facts)?item.return_facts:[];
+  if(!facts.length) return '<small>Return historis belum berhasil diekstrak.</small>';
+  return facts.slice(0,3).map(f=>
+    `<small><strong>${escapeHtml(f.period||'Return')}:</strong> ${escapeHtml(f.value||'')}</small>`
+  ).join('');
+}
+function renderFundDiscovery(funds){
+  const items=(funds?.items||[]).slice(0,20);
+  const managers=Array.isArray(funds?.managers_detected)?funds.managers_detected:[];
+  const meta=document.getElementById('fundCoverageMeta');
+  if(meta){
+    meta.textContent=`${items.length} hasil • ${managers.length || 0} MI teridentifikasi • semua-MI discovery`;
+  }
+  document.getElementById('fundDiscoveryGrid').innerHTML = items.map(x=>`
+    <div class="source">
+      <b>${escapeHtml(x.product_name || x.title || 'Produk reksadana')}</b>
+      <small><strong>MI:</strong> ${escapeHtml(x.manager || 'Belum teridentifikasi')}</small>
+      <small><strong>Kategori:</strong> ${escapeHtml(fundCategoryLabel(x.fund_category))}</small>
+      ${renderFundReturnFacts(x)}
+      <small>${compactSnippet(x.snippet||'',125)}</small>
+      <small>${sourceHost(x.url||'')}</small>
+    </div>
+  `).join('') || '<div class="source"><b>Belum ada hasil</b><small>Sumber reksadana belum berhasil ditemukan pada pencarian ini.</small></div>';
+}
 function getSelectedBankRateRanges(){
   return [...document.querySelectorAll('input[name="bankRateRange"]:checked')].map(x=>x.value);
 }
@@ -902,6 +979,9 @@ function applyBankRateRanges(ranges){
   document.querySelectorAll('input[name="bankRateRange"]').forEach(cb=>{
     cb.checked = wanted.includes(cb.value);
   });
+document.querySelectorAll('input[name="fundCategory"]').forEach(cb=>{
+  cb.addEventListener('change', scheduleSave);
+});
 }
 function syncKosFundingUI(){
   const mode=document.getElementById('kosSource')?.value || 'self';
@@ -981,6 +1061,7 @@ function gatherSettings(){
     ...getStockDiscoverySettings(),
     banks:document.getElementById('banks').value,
     bank_interest_ranges:getSelectedBankRateRanges(),
+    fund_categories:getSelectedFundCategories(),
     bank_simulation_amount:0,
     bank_simulation_months:+document.getElementById('bankSimulationMonths').value||12,
     bank_compound_frequency:+document.getElementById('bankCompoundFrequency').value||12,
@@ -1001,6 +1082,7 @@ function applySettings(s){
     const el=document.getElementById(id); if(el && s[key]!==undefined && s[key]!==null) el.value=s[key];
   }
   applyBankRateRanges(s.bank_interest_ranges);
+  if(Array.isArray(s.fund_categories) && s.fund_categories.length) applyFundCategories(s.fund_categories);
   syncKosFundingUI();
 }
 async function persistState(show=false){
@@ -1487,7 +1569,7 @@ const stepDefs = [
   ['crypto','Mengunci snapshot crypto','Mengambil snapshot baru khusus analisis'],
   ['stocks','Mengambil saham IDX','Mencari quote saham Indonesia'],
   ['banks','Mencari bank digital','Mencari bunga Jago, Saqu, Neo, Krom, SeaBank'],
-  ['funds','Mencari reksadana','Mencari data reksadana terbaru'],
+  ['funds','Mencari reksadana','Menyisir semua MI: pasar uang, pendapatan tetap, campuran, saham'],
   ['match','Mencocokkan data','Menyusun data terverifikasi untuk Ollama'],
   ['ollama','Ollama menganalisis','Mengirim data ke Ollama lokal di laptop'],
   ['done','Menyiapkan hasil','Menampilkan hasil akhir']
@@ -1940,6 +2022,7 @@ async function analyze(){
   document.getElementById('progress').classList.remove('hidden');
   document.getElementById('results').classList.add('hidden');
   document.getElementById('stockCandidatesWrap').classList.add('hidden');
+  document.getElementById('fundDiscoveryWrap').classList.add('hidden');
   document.getElementById('researchWrap').classList.add('hidden');
   document.getElementById('marketSimulationWrap').classList.add('hidden');
   document.getElementById('bankSimulationWrap').classList.add('hidden');
@@ -1968,7 +2051,9 @@ async function analyze(){
       + '&stock_recommendation_count='
       + encodeURIComponent(document.getElementById('stockRecommendationCount').value)
       + '&bank_rate_ranges='
-      + encodeURIComponent(getSelectedBankRateRanges().join(','));
+      + encodeURIComponent(getSelectedBankRateRanges().join(','))
+      + '&fund_categories='
+      + encodeURIComponent(getSelectedFundCategories().join(','));
 
     const researchController = new AbortController();
     const researchTimer = setTimeout(()=>researchController.abort(), 35000);
@@ -2007,6 +2092,7 @@ async function analyze(){
       stock_lot_budget: Math.max(0, budget.safe_investment_amount || 0),
       stock_recommendation_count: +document.getElementById('stockRecommendationCount').value,
       bank_interest_ranges: getSelectedBankRateRanges(),
+      fund_categories: getSelectedFundCategories(),
       bank_simulation_amount:0,
       bank_simulation_months:+document.getElementById('bankSimulationMonths').value||12,
       bank_compound_frequency:+document.getElementById('bankCompoundFrequency').value||12,
@@ -2030,7 +2116,23 @@ async function analyze(){
 
     payload.stocks = compact(stocks, 8);
     payload.banks = compact(banks, 10);
-    payload.funds = compact(funds, 8);
+    payload.funds = {
+      ...compact(funds, 16),
+      coverage_mode: funds.coverage_mode,
+      managers_detected: funds.managers_detected,
+      selected_categories: funds.selected_categories,
+      items: (funds.items||[]).slice(0,16).map(x=>({
+        category:x.category,
+        fund_category:x.fund_category,
+        manager:x.manager,
+        product_name:x.product_name,
+        title:x.title,
+        snippet:(x.snippet||'').slice(0,420),
+        return_facts:x.return_facts,
+        url:x.url,
+        official_hint:x.official_hint
+      }))
+    };
 
     const analysisSchema = {
       type:'object',
@@ -2103,6 +2205,11 @@ Aturan:
 - Jangan mengarang bunga, return, harga, atau minimum setoran yang tidak muncul di hasil pencarian internet.
 - Filter/prioritaskan bank berdasarkan bank_interest_ranges yang dipilih pengguna. Pengguna boleh memilih lebih dari satu range sekaligus.
 - Untuk bank, prioritaskan rate_facts hasil ekstraksi. Jika misalnya ditemukan produk seperti Saku Booster 10%, cukup jadikan itu informasi penting singkat; jangan menyalin seluruh halaman bank.
+- Untuk reksadana, cari lintas SEMUA Manajer Investasi yang berhasil ditemukan di internet, bukan hanya Syailendra atau BNI AM.
+- Bedakan kategori Pasar Uang, Pendapatan Tetap, Campuran, dan Saham sesuai fund_category.
+- Saat membahas reksadana, sebutkan nama produk, Manajer Investasi, kategori, return historis yang benar-benar ditemukan, dan sumber.
+- Jangan menyimpulkan produk terbaik hanya dari return historis tertinggi; pertimbangkan profil risiko, kategori, likuiditas, biaya, dan horizon investasi.
+- Jika manager/return belum terverifikasi, nyatakan belum terverifikasi.
 - Rekomendasi bank/deposito WAJIB menyebut bunga/rate yang benar-benar ditemukan, tenor bila tersedia, minimum setoran bila tersedia, likuiditas/penalti bila tersedia, dan sumbernya.
 - Jika rate/tenor/minimum setoran belum terverifikasi dari sumber yang ditemukan, jangan menulis "pilih bank X"; tulis "perlu verifikasi lebih lanjut".
 - Bunga tinggi tidak otomatis paling cocok: pertimbangkan syarat, tenor, akses dana, dan kebutuhan likuiditas.
@@ -2212,7 +2319,8 @@ ${JSON.stringify(payload)}
         </div>`;
       }).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Sistem belum menemukan kandidat saham untuk ditampilkan.</small></div>';
 
-    const refs = [ ...(stocks.items||[]), ...(banks.items||[]), ...(funds.items||[]) ];
+    renderFundDiscovery(funds);
+    const refs = [ ...(stocks.items||[]), ...(banks.items||[]) ];
     document.getElementById('research').innerHTML = refs.map(x=>`
       <div class="source">
         <b>${x.symbol || x.category || 'Sumber'}${x.title ? ' • ' + compactSnippet(x.title,70) : ''}</b>
@@ -2246,6 +2354,7 @@ ${JSON.stringify(payload)}
     document.getElementById('progress').classList.add('hidden');
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('stockCandidatesWrap').classList.remove('hidden');
+    document.getElementById('fundDiscoveryWrap').classList.remove('hidden');
     document.getElementById('researchWrap').classList.remove('hidden');
     document.getElementById('marketSimulationWrap').classList.remove('hidden');
     document.getElementById('bankSimulationWrap').classList.remove('hidden');

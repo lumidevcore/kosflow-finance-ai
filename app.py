@@ -457,20 +457,164 @@ async def bank_search(names_text, rate_ranges_text=''):
         if isinstance(chunk,list): result.extend(chunk)
     return {"fetched_at":nowiso(),"search_mode":"fast-official-first+single-web-fallback","banks_requested":names,"selected_interest_ranges":selected_ranges,"items":result}
 
-async def fund_search():
-    jobs=[("Reksadana pasar uang","reksadana pasar uang return 1 tahun terbaru Indonesia",["bareksa.com","bibit.id"]),("Reksadana pendapatan tetap","reksadana pendapatan tetap return 1 tahun terbaru Indonesia",["bareksa.com","bibit.id"])]
-    async def one(category,q,domains):
-        try: return await asyncio.wait_for(multi_search(q,category,domains,max_results=3),timeout=8)
-        except Exception: return []
-    chunks=await asyncio.gather(*(one(category,q,domains) for category,q,domains in jobs),return_exceptions=True)
-    out=[]; seen=set()
+
+FUND_CATEGORY_MAP = {
+    "money_market": "pasar uang",
+    "fixed_income": "pendapatan tetap",
+    "mixed": "campuran",
+    "equity": "saham",
+}
+
+# Ini hanya alias untuk mengenali nama MI pada hasil pencarian, BUKAN pembatas pencarian.
+# Discovery tetap memakai query internet umum sehingga MI lain tetap dapat muncul.
+INVESTMENT_MANAGER_ALIASES = {
+    "Syailendra Capital": ["syailendra"],
+    "BNI Asset Management": ["bni asset management", "bni am"],
+    "Mandiri Manajemen Investasi": ["mandiri manajemen investasi", "mandiri investasi"],
+    "BRI Manajemen Investasi": ["bri manajemen investasi", "bri mi"],
+    "Manulife Aset Manajemen Indonesia": ["manulife aset manajemen", "mami"],
+    "Schroders Indonesia": ["schroder", "schroders"],
+    "Sucor Asset Management": ["sucor asset management", "sucorinvest"],
+    "Batavia Prosperindo Aset Manajemen": ["batavia prosperindo", "bpam"],
+    "Eastspring Investments Indonesia": ["eastspring"],
+    "Principal Asset Management": ["principal asset management"],
+    "Bahana TCW Investment Management": ["bahana tcw"],
+    "Trimegah Asset Management": ["trimegah asset management", "trimegah am"],
+    "BNP Paribas Asset Management": ["bnp paribas asset management"],
+    "Ashmore Asset Management Indonesia": ["ashmore"],
+    "Danareksa Investment Management": ["danareksa investment management"],
+    "Avrist Asset Management": ["avrist asset management"],
+    "Majoris Asset Management": ["majoris asset management"],
+    "Insight Investments Management": ["insight investments management", "insight investment"],
+    "Samuel Aset Manajemen": ["samuel aset manajemen"],
+    "Shinhan Asset Management Indonesia": ["shinhan asset management"],
+    "Henan Putihrai Asset Management": ["henan putihrai asset management", "hpam"],
+    "Maybank Asset Management": ["maybank asset management"],
+    "KISI Asset Management": ["kisi asset management"],
+    "Star Asset Management": ["star asset management"],
+    "Ciptadana Asset Management": ["ciptadana asset management"],
+    "Panin Asset Management": ["panin asset management"],
+}
+
+
+def _infer_fund_manager(text):
+    t = (text or "").lower()
+    for manager, aliases in INVESTMENT_MANAGER_ALIASES.items():
+        if any(alias in t for alias in aliases):
+            return manager
+    return None
+
+
+def _extract_fund_return_facts(text, max_facts=4):
+    if not text:
+        return []
+    clean = re.sub(r"\s+", " ", text)
+    patterns = [
+        (r"(1\s*(?:tahun|thn|year))\s*[:|]?\s*([+-]?\d{1,3}(?:[.,]\d+)?)\s*%", "1 Tahun"),
+        (r"(ytd)\s*[:|]?\s*([+-]?\d{1,3}(?:[.,]\d+)?)\s*%", "YTD"),
+        (r"(6\s*(?:bulan|bln|month))\s*[:|]?\s*([+-]?\d{1,3}(?:[.,]\d+)?)\s*%", "6 Bulan"),
+        (r"(3\s*(?:bulan|bln|month))\s*[:|]?\s*([+-]?\d{1,3}(?:[.,]\d+)?)\s*%", "3 Bulan"),
+    ]
+    facts = []
+    seen = set()
+    for pattern, label in patterns:
+        for m in re.finditer(pattern, clean, re.I):
+            raw = m.group(2).replace(",", ".")
+            try:
+                val = float(raw)
+            except Exception:
+                continue
+            key = (label, round(val, 4))
+            if key in seen:
+                continue
+            seen.add(key)
+            facts.append({"period": label, "value": f"{val:+g}%", "percent": val})
+            if len(facts) >= max_facts:
+                return facts
+    return facts
+
+
+def _enrich_fund_item(item, category_key):
+    text = " ".join([
+        str(item.get("title") or ""),
+        str(item.get("snippet") or ""),
+        str(item.get("url") or ""),
+    ])
+    item["fund_category"] = category_key
+    item["manager"] = _infer_fund_manager(text)
+    item["product_name"] = (item.get("title") or "").split(" | ")[0].strip()[:180]
+    item["return_facts"] = _extract_fund_return_facts(text)
+    return item
+
+
+async def fund_search(categories_text=""):
+    selected = [x.strip() for x in (categories_text or "").split(",") if x.strip()]
+    selected = [x for x in selected if x in FUND_CATEGORY_MAP]
+    if not selected:
+        selected = list(FUND_CATEGORY_MAP.keys())
+
+    async def search_query(category_key, query, max_results=5):
+        try:
+            items = await asyncio.wait_for(
+                ddg_search(query, "Reksadana • " + FUND_CATEGORY_MAP[category_key].title(), max_results),
+                timeout=7,
+            )
+        except Exception:
+            return []
+        return [_enrich_fund_item(item, category_key) for item in items]
+
+    jobs = []
+    for key in selected:
+        label = FUND_CATEGORY_MAP[key]
+        # Tidak dibatasi MI tertentu: generic discovery + marketplace besar yang memuat banyak MI.
+        jobs.extend([
+            (key, f'reksa dana {label} Indonesia NAB return "1 tahun" manajer investasi'),
+            (key, f'site:bareksa.com reksa dana {label} "1 tahun"'),
+            (key, f'site:bibit.id reksa dana {label} "1 tahun"'),
+            (key, f'reksa dana {label} fund fact sheet Indonesia manajer investasi'),
+        ])
+
+    chunks = await asyncio.gather(
+        *(search_query(key, q) for key, q in jobs),
+        return_exceptions=True,
+    )
+
+    out = []
+    seen = set()
+    per_category_count = {key: 0 for key in selected}
     for chunk in chunks:
-        if not isinstance(chunk,list): continue
+        if not isinstance(chunk, list):
+            continue
         for item in chunk:
-            key=item.get("url") or item.get("title")
-            if key in seen: continue
-            seen.add(key); out.append(item)
-    return {"fetched_at":nowiso(),"search_mode":"fast-internet-web-search","items":out[:6]}
+            key = item.get("url") or item.get("title")
+            if not key or key in seen:
+                continue
+            cat = item.get("fund_category")
+            if per_category_count.get(cat, 0) >= 10:
+                continue
+            seen.add(key)
+            per_category_count[cat] = per_category_count.get(cat, 0) + 1
+            out.append(item)
+
+    # Results with identified MI and extracted return are more useful, but keep discovery diversity.
+    out.sort(key=lambda x: (
+        0 if x.get("manager") else 1,
+        0 if x.get("return_facts") else 1,
+        selected.index(x.get("fund_category")) if x.get("fund_category") in selected else 99,
+    ))
+
+    managers = sorted({x.get("manager") for x in out if x.get("manager")})
+
+    return {
+        "fetched_at": nowiso(),
+        "search_mode": "all-investment-managers-internet-discovery",
+        "coverage_mode": "ALL_MI_DISCOVERY_NOT_LIMITED_TO_FIXED_LIST",
+        "selected_categories": selected,
+        "managers_detected": managers,
+        "manager_count_detected": len(managers),
+        "items": out[:32],
+        "note": "Pencarian tidak dibatasi daftar MI tertentu. Nama alias hanya dipakai untuk pelabelan hasil yang ditemukan.",
+    }
 
 
 def _parse_dividend_per_share(text):
@@ -554,7 +698,7 @@ async def discover_affordable_stocks(max_lot_budget, limit=5):
     items.sort(key=lambda x:(-(x.get("lot_cost") or 0),abs(float(x.get("change_percent") or 0))))
     picked=items[:limit]; await enrich_dividends(picked); return picked
 
-async def combined_research(names_text, symbols_text, rate_ranges_text='', stock_lot_mode='manual', stock_lot_budget=0, stock_recommendation_count=5):
+async def combined_research(names_text, symbols_text, rate_ranges_text='', stock_lot_mode='manual', stock_lot_budget=0, stock_recommendation_count=5, fund_categories_text=''):
     async def get_stocks():
         if stock_lot_mode=="auto":
             candidates=await discover_affordable_stocks(stock_lot_budget,stock_recommendation_count)
@@ -570,10 +714,10 @@ async def combined_research(names_text, symbols_text, rate_ranges_text='', stock
             result=dict(fallback); result["warning"]=type(exc).__name__; return result
     banks,funds,stocks=await asyncio.gather(
         bounded(bank_search(names_text,rate_ranges_text),18,{"fetched_at":nowiso(),"items":[],"search_mode":"timeout-fallback"}),
-        bounded(fund_search(),12,{"fetched_at":nowiso(),"items":[],"search_mode":"timeout-fallback"}),
+        bounded(fund_search(fund_categories_text),16,{"fetched_at":nowiso(),"items":[],"search_mode":"timeout-fallback","coverage_mode":"ALL_MI_DISCOVERY_NOT_LIMITED_TO_FIXED_LIST"}),
         bounded(get_stocks(),22,{"fetched_at":nowiso(),"items":[],"candidates":[],"mode":stock_lot_mode}),
     )
-    return {"fetched_at":nowiso(),"research_mode":"parallel-bounded-v10.24","stocks":stocks,"banks":banks,"funds":funds}
+    return {"fetched_at":nowiso(),"research_mode":"parallel-bounded-v10.25-all-mi","stocks":stocks,"banks":banks,"funds":funds}
 
 async def send_json(send, data, status=200):
     body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -789,7 +933,11 @@ class KosFlowASGI:
                 )
 
             if method == "GET" and path == "/api/funds":
-                return await send_json(send, await fund_search())
+                fund_categories = query.get(
+                    "categories",
+                    ["money_market,fixed_income,mixed,equity"],
+                )[0]
+                return await send_json(send, await fund_search(fund_categories))
 
             if method == "GET" and path == "/api/research":
                 names = query.get(
@@ -804,6 +952,10 @@ class KosFlowASGI:
                 stock_lot_mode = query.get("stock_lot_mode", ["manual"])[0]
                 stock_lot_budget = query.get("stock_lot_budget", ["0"])[0]
                 stock_recommendation_count = query.get("stock_recommendation_count", ["5"])[0]
+                fund_categories = query.get(
+                    "fund_categories",
+                    ["money_market,fixed_income,mixed,equity"],
+                )[0]
                 return await send_json(
                     send,
                     await combined_research(
@@ -813,6 +965,7 @@ class KosFlowASGI:
                         stock_lot_mode,
                         stock_lot_budget,
                         stock_recommendation_count,
+                        fund_categories,
                     ),
                 )
 

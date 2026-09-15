@@ -176,3 +176,20 @@ Tidak ada migration database baru.
 - Scan saham dan dividen tidak lagi serial.
 - Tiap cabang riset punya timeout dan hasil parsial.
 - Frontend membatasi riset 35 detik dan tetap melanjutkan analisis jika sumber lambat.
+
+
+## Update v10.25 — Reksadana Semua Manajer Investasi
+
+Tidak ada migration database baru.
+
+Perubahan:
+- empat kategori reksadana tersedia sekaligus: Pasar Uang, Pendapatan Tetap, Campuran, dan Saham;
+- default semua kategori aktif;
+- backend memakai mode `ALL_MI_DISCOVERY_NOT_LIMITED_TO_FIXED_LIST`;
+- pencarian internet tidak dibatasi Syailendra, BNI AM, atau daftar MI tertentu;
+- pencarian dilakukan lintas web umum serta platform reksadana yang memuat produk dari banyak MI;
+- alias MI di backend hanya digunakan untuk mengenali/menamai hasil, bukan membatasi pencarian;
+- hasil reksadana memiliki `fund_category`, `manager`, `product_name`, `return_facts`, dan sumber URL;
+- AI diwajibkan membandingkan produk berdasarkan kategori, profil risiko, likuiditas, biaya/horizon, dan sumber — bukan hanya return historis tertinggi.
+
+Pilihan kategori disimpan di browser lokal. Supabase tidak membutuhkan kolom baru sehingga update ini tidak menimbulkan error schema pada `/api/state`.
