@@ -1,4 +1,4 @@
--- KosFlow Finance v10.10 - Supabase schema
+-- KosFlow Finance v10.13 - Supabase schema
 -- Jalankan seluruh file ini di Supabase > SQL Editor > New query > Run.
 
 create extension if not exists pgcrypto;
@@ -39,6 +39,13 @@ create table if not exists public.finance_settings (
   stock_recommendation_count integer not null default 5,
   banks text,
   bank_interest_ranges jsonb not null default '["0.5-4","4-6"]'::jsonb,
+  bank_simulation_amount numeric(18,2) not null default 0,
+  bank_simulation_months integer not null default 12,
+  bank_compound_frequency integer not null default 12,
+  market_simulation_months integer not null default 12,
+  market_bear_growth_pct numeric(8,3) not null default -10,
+  market_base_growth_pct numeric(8,3) not null default 8,
+  market_bull_growth_pct numeric(8,3) not null default 20,
   notes text,
   kos_source text not null default 'self' check (kos_source in ('self','parent','mixed')),
   kos_self_contribution numeric(18,2) not null default 0,
@@ -111,13 +118,13 @@ alter table public.research_sources enable row level security;
 -- Tidak membuat policy publik. Service role backend tetap dapat mengakses data.
 
 
--- v10.10 migration: multi-select range bunga bank
+-- v10.13 migration: multi-select range bunga bank
 alter table public.finance_settings
   add column if not exists bank_interest_ranges jsonb
   not null default '["0.5-4","4-6"]'::jsonb;
 
 
--- v10.10 migration: pendapatan manual + pembagian pembayaran kos
+-- v10.13 migration: pendapatan manual + pembagian pembayaran kos
 alter table public.finance_settings
   add column if not exists income_weekly_min numeric(18,2) not null default 0;
 alter table public.finance_settings
@@ -128,9 +135,26 @@ alter table public.finance_settings
   add column if not exists kos_parent_contribution numeric(18,2) not null default 0;
 
 
--- v10.10 migration: periode berlakunya pembagian pembayaran kos
+-- v10.13 migration: periode berlakunya pembagian pembayaran kos
 alter table public.finance_settings
   add column if not exists kos_cycle_start date;
 alter table public.finance_settings
   add column if not exists kos_funding_scope text
   not null default 'current_cycle';
+
+
+-- v10.13 migration: simulasi penempatan bank & compounding
+alter table public.finance_settings add column if not exists bank_simulation_amount numeric(18,2) not null default 0;
+alter table public.finance_settings add column if not exists bank_simulation_months integer not null default 12;
+alter table public.finance_settings add column if not exists bank_compound_frequency integer not null default 12;
+
+
+-- v10.13 migration: simulasi harga crypto/saham
+alter table public.finance_settings
+  add column if not exists market_simulation_months integer not null default 12;
+alter table public.finance_settings
+  add column if not exists market_bear_growth_pct numeric(8,3) not null default -10;
+alter table public.finance_settings
+  add column if not exists market_base_growth_pct numeric(8,3) not null default 8;
+alter table public.finance_settings
+  add column if not exists market_bull_growth_pct numeric(8,3) not null default 20;

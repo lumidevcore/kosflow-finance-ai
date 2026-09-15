@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.10</title>
+<title>KosFlow Finance v10.13</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -247,6 +247,15 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
   line-height:1.5;
 }
 
+.bank-sim-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.bank-sim-card{padding:16px;border-radius:20px;background:linear-gradient(180deg,#fff,#f6faff);border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)}
+.bank-sim-card .k{font-size:12px;color:#7486a2;margin-bottom:7px}
+.bank-sim-card .v{font-size:20px;font-weight:900;color:#203555}
+.bank-placement-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.bank-placement{padding:17px;border-radius:22px;background:linear-gradient(145deg,#ffffff,#f3f8ff);border:1px solid rgba(58,85,129,.08);box-shadow:var(--soft-shadow)}
+.bank-placement .rate{font-size:27px;font-weight:950;color:#4563e8;margin:5px 0}
+.bank-placement small{display:block;color:#6f809a;line-height:1.55}
+
 .main{display:flex;flex-direction:column;gap:18px}
 .hero{padding:24px;display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
 .eyebrow{
@@ -338,7 +347,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
   .hero{grid-template-columns:1fr}
 }
 @media (max-width: 860px){
-  .grid2,.hero-grid,.grid3,.grid4,.cards-grid,.interest-range-box{grid-template-columns:1fr}
+  .grid2,.hero-grid,.grid3,.grid4,.cards-grid,.interest-range-box,.bank-sim-summary,.bank-placement-grid{grid-template-columns:1fr}
   .big{font-size:42px}
   .market-card{width:280px}
 }
@@ -481,7 +490,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
         <div class="grid2">
           <div class="field">
-            <label>Saldo tersedia</label>
+            <label>Saldo pribadi sekarang</label>
             <input id="cash" type="number" value="400000" />
           </div>
           <div class="field">
@@ -526,11 +535,11 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
         <div id="kosFundingBox">
           <div class="field" id="selfKosField">
-            <label>Nominal kos dari uang sendiri</label>
+            <label>Kontribusi kos dari saldo pribadi</label>
             <input id="kosSelfContribution" type="number" value="330000" min="0" step="1000" />
           </div>
           <div class="field hidden" id="parentKosField">
-            <label>Nominal kos dari orang tua</label>
+            <label>Dana orang tua khusus kos</label>
             <input id="kosParentContribution" type="number" value="0" min="0" step="1000" />
           </div>
           <div class="note" id="kosFundingHint" style="margin-bottom:14px">
@@ -557,8 +566,9 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
         <div class="grid2">
           <div class="field">
-            <label>Dana aman</label>
-            <input id="buffer" type="number" value="50000" />
+            <label>Dana aman otomatis</label>
+            <input id="buffer" type="number" value="260000" readonly />
+            <div class="range-help">Otomatis = uang saku mingguan − kebutuhan mingguan. Tidak digabung dengan dana orang tua untuk kos.</div>
           </div>
           <div class="field">
             <label>Kebutuhan / minggu</label>
@@ -633,6 +643,70 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         </div>
 
         <div class="field">
+          <label>Simulasi penempatan dana di bank</label>
+          <div class="grid2">
+            <div>
+              <label style="font-size:11.5px">Dana simulasi</label>
+              <input id="bankSimulationAmount" type="number" min="0" step="1000" value="0" placeholder="0 = pakai surplus aman" />
+            </div>
+            <div>
+              <label style="font-size:11.5px">Durasi</label>
+              <select id="bankSimulationMonths">
+                <option value="1">1 bulan</option>
+                <option value="3">3 bulan</option>
+                <option value="6">6 bulan</option>
+                <option value="12" selected>12 bulan</option>
+                <option value="24">24 bulan</option>
+                <option value="36">36 bulan</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-top:10px;margin-bottom:0">
+            <label style="font-size:11.5px">Compounding simulasi</label>
+            <select id="bankCompoundFrequency">
+              <option value="12" selected>Bulanan</option>
+              <option value="4">Per 3 bulan</option>
+              <option value="1">Tahunan</option>
+            </select>
+          </div>
+          <div class="range-help">AI memilih penempatan berdasarkan bunga yang berhasil diverifikasi, syarat produk, dan likuiditas. Hasil compounding adalah simulasi bruto sebelum pajak/biaya dan bukan janji hasil.</div>
+        </div>
+
+
+        <div class="field">
+          <label>Simulasi harga Crypto & Saham</label>
+          <div class="grid2">
+            <div>
+              <label style="font-size:11.5px">Periode simulasi</label>
+              <select id="marketSimulationMonths">
+                <option value="1">1 bulan</option>
+                <option value="3">3 bulan</option>
+                <option value="6">6 bulan</option>
+                <option value="12" selected>1 tahun</option>
+                <option value="24">2 tahun</option>
+                <option value="36">3 tahun</option>
+                <option value="60">5 tahun</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px">Skenario utama / tahun</label>
+              <input id="marketBaseGrowthPct" type="number" value="8" step="0.5" />
+            </div>
+          </div>
+          <div class="grid2" style="margin-top:10px">
+            <div>
+              <label style="font-size:11.5px">Skenario rendah / tahun</label>
+              <input id="marketBearGrowthPct" type="number" value="-10" step="0.5" />
+            </div>
+            <div>
+              <label style="font-size:11.5px">Skenario tinggi / tahun</label>
+              <input id="marketBullGrowthPct" type="number" value="20" step="0.5" />
+            </div>
+          </div>
+          <div class="range-help">Ini simulasi skenario, bukan prediksi. Persentase bisa kamu ubah sendiri. Harga proyeksi dihitung dari harga snapshot saat analisis.</div>
+        </div>
+
+        <div class="field">
           <label>Catatan</label>
           <textarea id="notes" placeholder="Contoh: utamakan kebutuhan pokok, jangan pakai uang kos, dan prioritaskan opsi yang likuid."></textarea>
         </div>
@@ -655,8 +729,11 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         <div class="hero-grid">
           <div class="metric"><div class="k">Bayar kos awal</div><div class="v" id="payKos">Rp0</div></div>
           <div class="metric"><div class="k">Sisa kos</div><div class="v" id="remainingKos">Rp0</div></div>
+          <div class="metric"><div class="k">Bayar selanjutnya</div><div class="v" id="nextKosPayment">—</div></div>
           <div class="metric"><div class="k">Pendapatan app / minggu</div><div class="v" id="apps">Rp0</div></div>
           <div class="metric"><div class="k">Surplus aman investasi</div><div class="v" id="safe">Rp0</div></div>
+          <div class="metric"><div class="k">Saldo pribadi tersisa</div><div class="v" id="personalAvailableHero">Rp0</div></div>
+          <div class="metric"><div class="k">Dana orang tua untuk kos</div><div class="v" id="parentKosHero">Rp0</div></div>
           <div class="metric" style="grid-column:1/-1">
             <div class="k">Sumber pembayaran kos</div>
             <div class="v" id="kosSourceView">Uang saku / saldo sendiri</div>
@@ -701,6 +778,32 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
           <span>Saham • Bank digital • Reksadana</span>
         </div>
         <div class="grid4" id="research"></div>
+      </section>
+
+      <section class="card section hidden" id="marketSimulationWrap">
+        <div class="sec-head">
+          <h3>Simulasi Harga Crypto & Saham</h3>
+          <span id="marketSimulationMeta">Skenario, bukan prediksi</span>
+        </div>
+        <div class="grid3" id="cryptoSimulationGrid"></div>
+        <div style="height:14px"></div>
+        <div class="grid4" id="stockSimulationGrid"></div>
+        <div class="footer-tip">Simulasi memakai pertumbuhan tahunan yang kamu isi sendiri dan dikonversi ke periode pilihan. Tidak menjamin harga masa depan.</div>
+      </section>
+
+      <section class="card section hidden" id="bankSimulationWrap">
+        <div class="sec-head">
+          <h3>Simulasi Penempatan Bank & Compounding</h3>
+          <span id="bankSimulationMeta">Simulasi bruto</span>
+        </div>
+        <div class="bank-sim-summary">
+          <div class="bank-sim-card"><div class="k">Dana simulasi</div><div class="v" id="bankSimPrincipal">Rp0</div></div>
+          <div class="bank-sim-card"><div class="k">Estimasi bunga</div><div class="v" id="bankSimInterest">Rp0</div></div>
+          <div class="bank-sim-card"><div class="k">Nilai akhir</div><div class="v" id="bankSimFinal">Rp0</div></div>
+          <div class="bank-sim-card"><div class="k">Durasi</div><div class="v" id="bankSimDuration">12 bln</div></div>
+        </div>
+        <div class="bank-placement-grid" id="bankPlacementGrid"></div>
+        <div class="footer-tip">Perhitungan compounding memakai rate p.a. yang diberikan AI dari sumber riset. Bunga aktual, pajak, pencairan, dan metode kredit bunga dapat berbeda per produk bank.</div>
       </section>
 
       <section class="card section hidden" id="aiWrap">
@@ -790,7 +893,7 @@ function syncKosFundingUI(){
   const hint=document.getElementById('kosFundingHint');
   if(hint){
     hint.textContent = mode==='mixed'
-      ? 'Isi nominal dari uang sendiri dan dari orang tua. Keduanya dihitung terpisah dari uang saku mingguan.'
+      ? 'Isi kontribusi kos dari saldo pribadi dan dana orang tua secara terpisah. Dana orang tua tidak pernah digabung ke saldo pribadi, uang saku, dana aman, atau modal investasi.'
       : mode==='parent'
       ? 'Isi nominal yang dibayarkan orang tua. Saldo pribadimu tidak dikurangi oleh bagian ini.'
       : 'Isi nominal yang benar-benar kamu bayarkan dari uang sendiri.';
@@ -827,6 +930,13 @@ function compactSnippet(text,max=190){
   if(!s) return '';
   return s.length>max ? s.slice(0,max).replace(/\\s+\\S*$/,'')+'…' : s;
 }
+function renderBankRateFacts(item){
+  const facts=Array.isArray(item?.rate_facts)?item.rate_facts:[];
+  if(!facts.length) return '';
+  return facts.slice(0,3).map(f=>`
+    <small><strong>${escapeHtml(f.rate||'')}</strong>${f.context?' • '+escapeHtml(f.context):''}</small>
+  `).join('');
+}
 function sourceHost(url){
   try{return new URL(url).hostname.replace(/^www\\./,'')}catch(e){return url||''}
 }
@@ -847,6 +957,13 @@ function gatherSettings(){
     ...getStockDiscoverySettings(),
     banks:document.getElementById('banks').value,
     bank_interest_ranges:getSelectedBankRateRanges(),
+    bank_simulation_amount:+document.getElementById('bankSimulationAmount').value||0,
+    bank_simulation_months:+document.getElementById('bankSimulationMonths').value||12,
+    bank_compound_frequency:+document.getElementById('bankCompoundFrequency').value||12,
+    market_simulation_months:+document.getElementById('marketSimulationMonths').value||12,
+    market_bear_growth_pct:+document.getElementById('marketBearGrowthPct').value||-10,
+    market_base_growth_pct:+document.getElementById('marketBaseGrowthPct').value||8,
+    market_bull_growth_pct:+document.getElementById('marketBullGrowthPct').value||20,
     notes:document.getElementById('notes').value,
     kos_source:document.getElementById('kosSource').value,
     kos_self_contribution:+document.getElementById('kosSelfContribution').value||0,
@@ -855,7 +972,7 @@ function gatherSettings(){
 }
 function applySettings(s){
   if(!s) return;
-  const map={bridge:'bridge_url',cash:'cash',allowance:'allowance',incomeMin:'income_weekly_min',incomeMax:'income_weekly_max',kos:'monthly_kos',weeks:'weeks',buffer:'buffer',needs:'weekly_needs',risk:'risk',stocks:'stocks',banks:'banks',notes:'notes',kosSource:'kos_source',kosSelfContribution:'kos_self_contribution',kosParentContribution:'kos_parent_contribution',kosCycleStart:'kos_cycle_start',kosFundingScope:'kos_funding_scope'};
+  const map={bridge:'bridge_url',cash:'cash',allowance:'allowance',incomeMin:'income_weekly_min',incomeMax:'income_weekly_max',kos:'monthly_kos',weeks:'weeks',buffer:'buffer',needs:'weekly_needs',risk:'risk',stocks:'stocks',banks:'banks',notes:'notes',kosSource:'kos_source',kosSelfContribution:'kos_self_contribution',kosParentContribution:'kos_parent_contribution',kosCycleStart:'kos_cycle_start',kosFundingScope:'kos_funding_scope',bankSimulationAmount:'bank_simulation_amount',bankSimulationMonths:'bank_simulation_months',bankCompoundFrequency:'bank_compound_frequency',marketSimulationMonths:'market_simulation_months',marketBearGrowthPct:'market_bear_growth_pct',marketBaseGrowthPct:'market_base_growth_pct',marketBullGrowthPct:'market_bull_growth_pct'};
   for(const [id,key] of Object.entries(map)){
     const el=document.getElementById(id); if(el && s[key]!==undefined && s[key]!==null) el.value=s[key];
   }
@@ -927,6 +1044,104 @@ function tryParseJSON(raw){
   }
   return null;
 }
+function isExpectedAnalysisShape(data){
+  return !!(data && typeof data==='object' &&
+    (typeof data.status==='string' || Array.isArray(data.summary)) &&
+    Array.isArray(data.priorities) && Array.isArray(data.warnings) &&
+    Array.isArray(data.recommendations));
+}
+function nnum(v, fallback=0){
+  const n=Number(v); return Number.isFinite(n)?n:fallback;
+}
+function compoundFV(principal, annualRatePct, months, compoundsPerYear){
+  const p=Math.max(0,nnum(principal));
+  const r=Math.max(0,nnum(annualRatePct))/100;
+  const m=Math.max(1,nnum(compoundsPerYear,12));
+  const years=Math.max(0,nnum(months,12))/12;
+  return p*Math.pow(1+r/m,m*years);
+}
+function scenarioPrice(current, annualPct, months){
+  const p=Math.max(0,nnum(current));
+  const r=nnum(annualPct)/100;
+  const years=Math.max(0,nnum(months,12))/12;
+  if(r<=-1) return 0;
+  return p*Math.pow(1+r,years);
+}
+function renderMarketSimulation(crypto,stocks){
+  const months=+document.getElementById('marketSimulationMonths').value||12;
+  const bear=+document.getElementById('marketBearGrowthPct').value||-10;
+  const base=+document.getElementById('marketBaseGrowthPct').value||8;
+  const bull=+document.getElementById('marketBullGrowthPct').value||20;
+  const label=months===12?'1 tahun':months%12===0?`${months/12} tahun`:`${months} bulan`;
+  document.getElementById('marketSimulationMeta').textContent=`${label} • skenario ${bear}% / ${base}% / ${bull}% p.a.`;
+
+  const cryptoItems=(crypto?.items||[]).slice(0,6);
+  document.getElementById('cryptoSimulationGrid').innerHTML=cryptoItems.map(x=>{
+    const now=nnum(x.price_idr);
+    return `<div class="snap">
+      <b>${escapeHtml(x.symbol||'Crypto')}</b>
+      <small>Sekarang: <strong>${idr(now)}</strong></small>
+      <small>Rendah (${bear}%): ${idr(scenarioPrice(now,bear,months))}</small>
+      <small>Utama (${base}%): <strong>${idr(scenarioPrice(now,base,months))}</strong></small>
+      <small>Tinggi (${bull}%): ${idr(scenarioPrice(now,bull,months))}</small>
+    </div>`;
+  }).join('') || '<div class="snap"><b>Crypto</b><small>Belum ada snapshot.</small></div>';
+
+  const stockItems=(stocks?.candidates||stocks?.items||[]).slice(0,8);
+  document.getElementById('stockSimulationGrid').innerHTML=stockItems.map(x=>{
+    const now=nnum(x.price);
+    const lot=nnum(x.lot_cost,now*100);
+    const projectedLot=scenarioPrice(lot,base,months);
+    return `<div class="source">
+      <b>${escapeHtml(x.symbol||'Saham')}</b>
+      <small>Harga: ${idr(now)} / lembar</small>
+      <small>1 lot sekarang: ${idr(lot)}</small>
+      <small>1 lot skenario utama: <strong>${idr(projectedLot)}</strong></small>
+      ${x.dividend_per_share!=null?`<small>Dividen indikatif: ${idr(nnum(x.dividend_per_share))}/saham</small>`:''}
+    </div>`;
+  }).join('') || '<div class="source"><b>Saham</b><small>Belum ada kandidat.</small></div>';
+}
+function renderBankSimulation(data,budget){
+  const wrap=document.getElementById('bankSimulationWrap');
+  const grid=document.getElementById('bankPlacementGrid');
+  const placements=Array.isArray(data?.bank_placements)?data.bank_placements.filter(x=>nnum(x?.annual_rate_percent)>0):[];
+  let principal=+document.getElementById('bankSimulationAmount').value||0;
+  if(principal<=0) principal=Math.max(0,nnum(budget?.safe_investment_amount));
+  const months=+document.getElementById('bankSimulationMonths').value||12;
+  const freq=+document.getElementById('bankCompoundFrequency').value||12;
+  document.getElementById('bankSimPrincipal').textContent=idr(principal);
+  document.getElementById('bankSimDuration').textContent=`${months} bln`;
+  document.getElementById('bankSimulationMeta').textContent=`Compounding ${freq===12?'bulanan':freq===4?'3 bulanan':'tahunan'} • bruto`;
+  if(!placements.length || principal<=0){
+    document.getElementById('bankSimInterest').textContent='Rp0';
+    document.getElementById('bankSimFinal').textContent=idr(principal);
+    grid.innerHTML=`<div class="bank-placement" style="grid-column:1/-1"><b>Simulasi belum tersedia</b><small>${principal<=0?'Isi dana simulasi atau pastikan ada surplus aman investasi.':'AI belum menemukan rate bank yang cukup terverifikasi untuk simulasi.'}</small></div>`;
+    wrap.classList.remove('hidden'); return;
+  }
+  const weightSum=placements.reduce((s,x)=>s+Math.max(0,nnum(x.allocation_percent)),0)||placements.length;
+  let totalFinal=0;
+  grid.innerHTML=placements.map((x,i)=>{
+    const rawWeight=Math.max(0,nnum(x.allocation_percent));
+    const pct=weightSum>0 ? ((rawWeight|| (weightSum===placements.length?1:0))/weightSum*100) : (100/placements.length);
+    const alloc=principal*pct/100;
+    const rate=nnum(x.annual_rate_percent);
+    const fv=compoundFV(alloc,rate,months,freq);
+    const interest=Math.max(0,fv-alloc); totalFinal+=fv;
+    return `<div class="bank-placement">
+      <b>${escapeHtml(x.bank||'Bank')} ${x.product? '• '+escapeHtml(x.product):''}</b>
+      <div class="rate">${rate.toFixed(2)}% p.a.</div>
+      <small>Alokasi: ${pct.toFixed(1)}% • ${idr(alloc)}</small>
+      <small>Estimasi bunga compounding: <b>${idr(interest)}</b></small>
+      <small>Estimasi nilai akhir: <b>${idr(fv)}</b></small>
+      <small>${x.tenor? 'Tenor/syarat: '+escapeHtml(String(x.tenor)) : 'Tenor: mengikuti produk'}</small>
+      <small>${x.source? 'Sumber: '+escapeHtml(String(x.source)) : ''}</small>
+    </div>`;
+  }).join('');
+  document.getElementById('bankSimInterest').textContent=idr(Math.max(0,totalFinal-principal));
+  document.getElementById('bankSimFinal').textContent=idr(totalFinal);
+  wrap.classList.remove('hidden');
+}
+
 function bulletize(arr){
   if(!Array.isArray(arr) || !arr.length) return '<p>Tidak ada data.</p>';
   return '<ul>' + arr.map(x=>`<li>${escapeHtml(typeof x==='string'?x:(x.title||x.label||JSON.stringify(x)))}</li>`).join('') + '</ul>';
@@ -1158,6 +1373,16 @@ document.getElementById('kosCycleStart').addEventListener('change', ()=>{ update
 document.getElementById('kosFundingScope').addEventListener('change', ()=>{ updateKosScopeHint(); scheduleSave(); });
 syncKosFundingUI();
 updateKosScopeHint();
+
+['allowance','needs','cash','kosSelfContribution','kosParentContribution','kosSource'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el){
+    el.addEventListener('input', updateAutoMoneyPreview);
+    el.addEventListener('change', updateAutoMoneyPreview);
+  }
+});
+updateAutoMoneyPreview();
+
 startCrypto();
 });
 
@@ -1248,63 +1473,173 @@ function step(key,p,msg){
   document.getElementById('fill').style.width = p+'%';
   document.getElementById('pct').textContent = p+'%';
 }
+function parseLocalDate(value){
+  if(!value) return null;
+  const [y,m,d]=value.split('-').map(Number);
+  if(!y||!m||!d) return null;
+  return new Date(y,m-1,d,12,0,0,0);
+}
+function addDaysLocal(date, days){
+  const d=new Date(date.getTime());
+  d.setDate(d.getDate()+Number(days||0));
+  return d;
+}
+function addMonthsLocal(date, months){
+  const d=new Date(date.getTime());
+  const day=d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth()+Number(months||0));
+  const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  d.setDate(Math.min(day,last));
+  return d;
+}
+function formatDateID(date){
+  if(!date || isNaN(date)) return '—';
+  return new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'long',year:'numeric'}).format(date);
+}
+function updateAutoMoneyPreview(){
+  const cash=+document.getElementById('cash')?.value||0;
+  const allowance=+document.getElementById('allowance')?.value||0;
+  const needs=+document.getElementById('needs')?.value||0;
+  const selfPay=+document.getElementById('kosSelfContribution')?.value||0;
+  const parentPay=+document.getElementById('kosParentContribution')?.value||0;
+
+  const autoSafe=Math.max(0, allowance-needs);
+  const personalAfter=Math.max(0, cash-selfPay);
+
+  const bufferEl=document.getElementById('buffer');
+  if(bufferEl) bufferEl.value=Math.round(autoSafe);
+
+  const p=document.getElementById('personalBalancePreview');
+  if(p) p.textContent=idr(personalAfter);
+
+  const pp=document.getElementById('parentKosPreview');
+  if(pp) pp.textContent=idr(parentPay);
+
+  const miniSafe=document.getElementById('miniSafe');
+  if(miniSafe) miniSafe.textContent=idr(autoSafe);
+  const miniSafe2=document.getElementById('miniSafe2');
+  if(miniSafe2) miniSafe2.textContent=idr(autoSafe);
+}
 function calcBudget(){
   const cash = +document.getElementById('cash').value || 0;
   const allow = +document.getElementById('allowance').value || 0;
-  const incomeMin = +document.getElementById('incomeMin').value || 0;
-  const incomeMax = Math.max(incomeMin, +document.getElementById('incomeMax').value || 0);
+  const incomeMin = +document.getElementById('incomeWeeklyMin')?.value || 0;
+  const incomeMax = +document.getElementById('incomeWeeklyMax')?.value || 0;
   const kos = +document.getElementById('kos').value || 0;
   const weeks = +document.getElementById('weeks').value || 1;
   const needs = +document.getElementById('needs').value || 0;
-  const buffer = +document.getElementById('buffer').value || 0;
   const kosSource = document.getElementById('kosSource').value;
-  const kosCycleStart = document.getElementById('kosCycleStart').value;
-  const kosCycleEnd = addOneCalendarMonth(kosCycleStart);
-  const kosFundingScope = document.getElementById('kosFundingScope').value;
+  const selfInput = +document.getElementById('kosSelfContribution')?.value || 0;
+  const parentInput = +document.getElementById('kosParentContribution')?.value || 0;
+  const kosCycleStart = document.getElementById('kosCycleStart')?.value || '';
+  const kosCycleEnd = document.getElementById('kosCycleEnd')?.value || '';
+  const kosFundingScope = document.getElementById('kosFundingScope')?.value || 'current_cycle';
 
-  const targetInitialPayment = Math.ceil((kos / 30 * (weeks*7)) / 10000) * 10000;
-  let ownInput = +document.getElementById('kosSelfContribution').value || 0;
-  let parentInput = +document.getElementById('kosParentContribution').value || 0;
+  const raw = kos / 30 * (weeks*7);
+  const pay = Math.ceil(raw / 10000) * 10000;
+  const remaining = Math.max(0, kos - pay);
 
-  if(kosSource === 'self') parentInput = 0;
-  if(kosSource === 'parent') ownInput = 0;
+  // Dana aman otomatis hanya berasal dari uang saku minus kebutuhan mingguan.
+  const autoSafe = Math.max(0, allow - needs);
+  const bufferEl = document.getElementById('buffer');
+  if(bufferEl) bufferEl.value = Math.round(autoSafe);
 
-  // Jangan izinkan alokasi melebihi target bayar awal.
-  const ownPaid = Math.min(Math.max(0, ownInput), targetInitialPayment);
-  const parentPaid = Math.min(Math.max(0, parentInput), Math.max(0, targetInitialPayment-ownPaid));
-  const actualInitialPayment = ownPaid + parentPaid;
-  const fundingGap = Math.max(0, targetInitialPayment - actualInitialPayment);
-  const remaining = Math.max(0, kos - actualInitialPayment);
-  const after = cash - ownPaid;
+  // Kontribusi kos bulanan dipisah penuh. Contoh: sendiri 330k + orang tua 370k.
+  let selfContribution = 0;
+  let parentContribution = 0;
+  let sourceLabel = 'Uang sendiri';
 
-  let sourceLabel='Uang sendiri';
-  if(kosSource==='parent') sourceLabel='Orang tua';
-  if(kosSource==='mixed') sourceLabel='Campuran — uang sendiri + orang tua';
+  if(kosSource === 'self'){
+    selfContribution = Math.min(kos, selfInput > 0 ? selfInput : kos);
+    sourceLabel = 'Uang sendiri';
+  }else if(kosSource === 'parent'){
+    parentContribution = Math.min(kos, parentInput > 0 ? parentInput : kos);
+    sourceLabel = 'Orang tua';
+  }else{
+    selfContribution = Math.max(0, selfInput);
+    parentContribution = Math.max(0, parentInput);
+    sourceLabel = 'Campuran — uang sendiri + orang tua';
+  }
 
-  // Dana investasi sekarang hanya berasal dari saldo yang benar-benar tersedia.
-  const safe = Math.max(0, after - needs - buffer);
+  const totalKosFunding = selfContribution + parentContribution;
+  const monthlyKosFundingGap = Math.max(0, kos - totalKosFunding);
+
+  // Pembayaran awal diambil dari kontribusi pribadi lebih dulu, sisanya dari dana orang tua.
+  const initialSelfPaid = Math.min(pay, selfContribution);
+  const initialParentPaid = Math.min(
+    Math.max(0, pay - initialSelfPaid),
+    parentContribution
+  );
+  const initialPaidActual = initialSelfPaid + initialParentPaid;
+  const initialFundingGap = Math.max(0, pay - initialPaidActual);
+
+  // Saldo pribadi TIDAK pernah mencakup dana orang tua.
+  const personalCashAfterKos = Math.max(0, cash - initialSelfPaid);
+
+  // Jika kontribusi orang tua ditujukan untuk sisa kos, tetap tampil terpisah.
+  const parentKosReserved = parentContribution;
+
+  // Dana investasi sekarang hanya dari saldo pribadi yang benar-benar ada,
+  // setelah kebutuhan minggu berjalan dan dana aman otomatis.
+  const safe = Math.max(0, personalCashAfterKos - needs - autoSafe);
+
   const projectedWeeklySurplusMin = Math.max(0, allow + incomeMin - needs);
   const projectedWeeklySurplusMax = Math.max(0, allow + incomeMax - needs);
 
+  const cycleStartDate = parseLocalDate(kosCycleStart);
+  const cycleEndDate = parseLocalDate(kosCycleEnd);
+  let nextPaymentDate = null;
+  if(cycleStartDate){
+    nextPaymentDate = remaining > 0
+      ? addDaysLocal(cycleStartDate, weeks*7)
+      : cycleEndDate;
+    if(cycleEndDate && nextPaymentDate && nextPaymentDate > cycleEndDate){
+      nextPaymentDate = cycleEndDate;
+    }
+  }
+
   return {
-    target_initial_kos_payment: targetInitialPayment,
-    initial_kos_payment: actualInitialPayment,
-    initial_kos_funding_gap: fundingGap,
+    initial_kos_payment: pay,
+    initial_payment_actual: initialPaidActual,
+    initial_payment_from_self: initialSelfPaid,
+    initial_payment_from_parent: initialParentPaid,
+    initial_payment_gap: initialFundingGap,
+
     remaining_kos: remaining,
-    cash_after_initial_kos: after,
+    monthly_kos: kos,
+    monthly_kos_funding_total: totalKosFunding,
+    monthly_kos_funding_gap: monthlyKosFundingGap,
+
+    cash_before_kos: cash,
+    cash_after_initial_kos: personalCashAfterKos,
+    personal_available_balance: personalCashAfterKos,
+    parent_kos_reserved: parentKosReserved,
+
+    allowance: allow,
+    weekly_needs: needs,
+    buffer: autoSafe,
+    auto_safe_fund: autoSafe,
+
     app_income_weekly_min: incomeMin,
     app_income_weekly_max: incomeMax,
-    safe_investment_amount: safe,
     projected_weekly_surplus_min: projectedWeeklySurplusMin,
     projected_weekly_surplus_max: projectedWeeklySurplusMax,
-    buffer,
-    weekly_needs: needs,
-    allowance: allow,
+    safe_investment_amount: safe,
+
     initial_days: weeks*7,
     kos_source: kosSource,
     kos_source_label: sourceLabel,
-    kos_self_contribution: ownPaid,
-    kos_parent_contribution: parentPaid
+    kos_self_contribution: selfContribution,
+    kos_parent_contribution: parentContribution,
+    kos_cycle_start: kosCycleStart || null,
+    kos_cycle_end: kosCycleEnd || null,
+    kos_funding_scope: kosFundingScope,
+    next_kos_payment_date: nextPaymentDate ? [
+      nextPaymentDate.getFullYear(),
+      String(nextPaymentDate.getMonth()+1).padStart(2,'0'),
+      String(nextPaymentDate.getDate()).padStart(2,'0')
+    ].join('-') : null
   };
 }
 
@@ -1312,21 +1647,41 @@ function renderSavedAnalysis(saved){
   if(!saved || !saved.budget) return;
   const {budget,crypto,stocks,banks,funds,parsed,raw,model}=saved;
   document.getElementById('cashAfter').textContent=idr(budget.cash_after_initial_kos);
-  document.getElementById('heroSub').textContent=`${budget.initial_days} hari target • bayar aktual ${idr(budget.initial_kos_payment)} • sendiri ${idr(budget.kos_self_contribution||0)} • orang tua ${idr(budget.kos_parent_contribution||0)} • sisa kos ${idr(budget.remaining_kos)}`;
+  document.getElementById('heroSub').textContent =
+      `${budget.initial_days} hari target • bayar awal aktual ${idr(budget.initial_payment_actual)} • ` +
+      `pribadi ${idr(budget.initial_payment_from_self)} • orang tua ${idr(budget.kos_parent_contribution)} • ` +
+      `sisa kos ${idr(budget.remaining_kos)}`;
   document.getElementById('payKos').textContent=idr(budget.initial_kos_payment);
   document.getElementById('remainingKos').textContent=idr(budget.remaining_kos);
+  document.getElementById('nextKosPayment').textContent =
+    budget.next_kos_payment_date ? formatDateID(parseLocalDate(budget.next_kos_payment_date)) : '—';
   document.getElementById('apps').textContent=`${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
   document.getElementById('safe').textContent=idr(budget.safe_investment_amount);
+  document.getElementById('personalAvailableHero').textContent=idr(budget.personal_available_balance ?? budget.cash_after_initial_kos);
+  document.getElementById('parentKosHero').textContent=idr(budget.kos_parent_contribution ?? 0);
   document.getElementById('kosSourceView').textContent=`${budget.kos_source_label||'-'} • ${budget.kos_funding_scope_label||''}`;
   document.getElementById('snapTime').textContent=crypto?.fetched_at||'—';
   document.getElementById('snapGrid').innerHTML=(crypto?.items||[]).map(x=>`<div class="snap"><b>${x.symbol} snapshot</b><small>${idr(x.price_idr||0)}</small><small>24j ${Number(x.change_24h||0).toFixed(2)}%</small><small>${x.source||''}</small></div>`).join('');
   const refs=[...(stocks?.items||[]),...(banks?.items||[]),...(funds?.items||[])];
-  document.getElementById('research').innerHTML=refs.map(x=>`<div class="source"><b>${x.symbol||x.category||'Sumber'}${x.title?' • '+compactSnippet(x.title,70):''}</b><small>${compactSnippet(x.snippet||(x.price!=null?idr(x.price):''),190)}</small><small>${sourceHost(x.url||x.source||'')}</small></div>`).join('');
-  if(parsed) renderAnalysisCardsFromJSON(parsed,raw||''); else renderFallbackCards(raw||'',budget);
+  document.getElementById('research').innerHTML = refs.map(x=>{
+      const isBank=String(x.category||'').toLowerCase().includes('bank');
+      const important=isBank ? renderBankRateFacts(x) : '';
+      const fallback=important ? '' : `<small>${compactSnippet(x.snippet||(x.price!=null?idr(x.price):''),120)}</small>`;
+      return `<div class="source">
+        <b>${escapeHtml(isBank ? (x.category||x.title||'Bank') : (x.symbol||x.category||x.title||'Sumber'))}</b>
+        ${important || fallback}
+        <small>${sourceHost(x.url||x.source||'')}</small>
+      </div>`;
+    }).join('');
+  if(isExpectedAnalysisShape(parsed)) renderAnalysisCardsFromJSON(parsed,raw||''); else renderFallbackCards(raw||'',budget);
+  renderMarketSimulation(crypto||{},stocks||{});
+    renderMarketSimulation(crypto||{},stocks||{});
+  renderBankSimulation(parsed||{},budget);
   document.getElementById('modelUsed').textContent=model||'';
   document.getElementById('placeholder').classList.add('hidden');
   document.getElementById('results').classList.remove('hidden');
   document.getElementById('researchWrap').classList.remove('hidden');
+  document.getElementById('bankSimulationWrap').classList.remove('hidden');
   document.getElementById('aiWrap').classList.remove('hidden');
 }
 async function restoreLastAnalysis(){
@@ -1349,6 +1704,8 @@ async function analyze(){
   document.getElementById('results').classList.add('hidden');
   document.getElementById('stockCandidatesWrap').classList.add('hidden');
   document.getElementById('researchWrap').classList.add('hidden');
+  document.getElementById('marketSimulationWrap').classList.add('hidden');
+  document.getElementById('bankSimulationWrap').classList.add('hidden');
   document.getElementById('aiWrap').classList.add('hidden');
   renderSteps();
 
@@ -1395,6 +1752,9 @@ async function analyze(){
       stock_lot_budget: +document.getElementById('stockLotBudget').value,
       stock_recommendation_count: +document.getElementById('stockRecommendationCount').value,
       bank_interest_ranges: getSelectedBankRateRanges(),
+      bank_simulation_amount:+document.getElementById('bankSimulationAmount').value||0,
+      bank_simulation_months:+document.getElementById('bankSimulationMonths').value||12,
+      bank_compound_frequency:+document.getElementById('bankCompoundFrequency').value||12,
       notes: document.getElementById('notes').value
     };
 
@@ -1417,6 +1777,20 @@ async function analyze(){
     payload.banks = compact(banks, 10);
     payload.funds = compact(funds, 8);
 
+    const analysisSchema = {
+      type:'object',
+      required:['status','summary','priorities','warnings','recommendations','bank_placements','conclusion'],
+      properties:{
+        status:{type:'string'},
+        summary:{type:'array',items:{type:'string'}},
+        priorities:{type:'array',items:{type:'string'}},
+        warnings:{type:'array',items:{type:'string'}},
+        recommendations:{type:'array',items:{type:'object',properties:{title:{type:'string'},detail:{type:'string'},evidence:{type:'string'},source:{type:'string'},confidence:{type:'string'}},required:['title','detail']}},
+        bank_placements:{type:'array',maxItems:3,items:{type:'object',properties:{bank:{type:'string'},product:{type:'string'},annual_rate_percent:{type:'number'},allocation_percent:{type:'number'},tenor:{type:'string'},minimum_deposit:{type:'string'},source:{type:'string'},rate_verified:{type:'boolean'}},required:['bank','product','annual_rate_percent','allocation_percent','source','rate_verified']}},
+        conclusion:{type:'string'}
+      }
+    };
+
     const prompt = `
 Kamu adalah analis keuangan pribadi Indonesia.
 Analisis data JSON berikut dan KEMBALIKAN HASIL DALAM FORMAT JSON VALID SAJA, tanpa markdown, tanpa penjelasan tambahan di luar JSON.
@@ -1436,6 +1810,18 @@ Format wajib:
       "confidence":"tinggi/sedang/rendah"
     }
   ],
+  "bank_placements": [
+    {
+      "bank":"nama bank",
+      "product":"nama produk tabungan/deposito",
+      "annual_rate_percent":6.0,
+      "allocation_percent":50,
+      "tenor":"tenor atau keterangan likuiditas",
+      "minimum_deposit":"minimum setoran jika ditemukan",
+      "source":"URL sumber rate",
+      "rate_verified":true
+    }
+  ],
   "conclusion": "kesimpulan akhir singkat"
 }
 
@@ -1445,7 +1831,11 @@ Aturan:
 - Perhatikan field kos_source_label. Jika kos dibayar orang tua, jangan kurangi kemampuan uang pribadi seolah kos dibayar dari saldo sendiri.
 - Jika mode campuran, pembayaran awal berasal dari saldo sendiri sedangkan sisa kos ditanggung orang tua.
 - Perhatikan kos_funding_scope: jika current_cycle, pembagian pembayaran hanya berlaku pada periode kos yang tercantum dan jangan diasumsikan berlanjut bulan berikutnya. Jika ongoing, barulah boleh diasumsikan berulang tiap periode bulanan sampai diubah pengguna.
-- Fakta bahwa orang tua menanggung sebagian/seluruh kos HANYA mengurangi beban pengeluaran pengguna. Jangan pernah menulis seolah-olah "uang kos dari orang tua dimanfaatkan untuk investasi".
+- Fakta bahwa orang tua menanggung sebagian/seluruh kos HANYA mengurangi beban pengeluaran pengguna.
+- Dana orang tua untuk kos adalah kantong terpisah dan TIDAK boleh dianggap sebagai saldo pribadi, dana aman, atau modal investasi.
+- Gunakan personal_available_balance untuk saldo pribadi yang masih tersedia.
+- Gunakan kos_parent_contribution hanya untuk kewajiban kos yang ditanggung orang tua.
+- auto_safe_fund dihitung otomatis dari uang saku mingguan dikurangi kebutuhan mingguan; jangan mencampurnya dengan kontribusi orang tua. Jangan pernah menulis seolah-olah "uang kos dari orang tua dimanfaatkan untuk investasi".
 - Bedakan tegas antara saldo sekarang, uang saku mingguan, pendapatan tambahan/app mingguan, dan sumber pembayaran kos. Keempatnya adalah kategori berbeda. Jangan menjumlahkannya seolah semuanya berasal dari sumber yang sama.
 - Gunakan kos_self_contribution dan kos_parent_contribution sebagai nominal pembayaran kos yang benar-benar berasal dari masing-masing pihak. Jika ada initial_kos_funding_gap, sebutkan kekurangan bayar awal tersebut sebelum membahas investasi.
 - Bedakan tegas antara uang yang SUDAH ADA sekarang dan pendapatan/uang saku yang BARU DIPROYEKSIKAN. Jangan menyebut proyeksi pendapatan masa depan sebagai dana investasi yang sudah tersedia.
@@ -1457,9 +1847,14 @@ Aturan:
 - Jika data bank/reksadana/saham kurang kuat, fallback, atau tidak menemukan sumber resmi, sebutkan secara singkat di warnings.
 - Jangan mengarang bunga, return, harga, atau minimum setoran yang tidak muncul di hasil pencarian internet.
 - Filter/prioritaskan bank berdasarkan bank_interest_ranges yang dipilih pengguna. Pengguna boleh memilih lebih dari satu range sekaligus.
+- Untuk bank, prioritaskan rate_facts hasil ekstraksi. Jika misalnya ditemukan produk seperti Saku Booster 10%, cukup jadikan itu informasi penting singkat; jangan menyalin seluruh halaman bank.
 - Rekomendasi bank/deposito WAJIB menyebut bunga/rate yang benar-benar ditemukan, tenor bila tersedia, minimum setoran bila tersedia, likuiditas/penalti bila tersedia, dan sumbernya.
 - Jika rate/tenor/minimum setoran belum terverifikasi dari sumber yang ditemukan, jangan menulis "pilih bank X"; tulis "perlu verifikasi lebih lanjut".
 - Bunga tinggi tidak otomatis paling cocok: pertimbangkan syarat, tenor, akses dana, dan kebutuhan likuiditas.
+- bank_placements hanya boleh berisi produk bank dengan annual_rate_percent yang BENAR-BENAR terlihat pada sumber riset. Jangan menebak rate.
+- Pilih maksimal 3 penempatan bank. allocation_percent seluruh bank harus berjumlah 100. Utamakan rate yang masuk bank_interest_ranges, lalu likuiditas dan syarat minimum setoran.
+- Jika tidak ada rate yang cukup terverifikasi, kembalikan bank_placements sebagai array kosong.
+- bank_placements dipakai aplikasi untuk simulasi compounding; karena itu annual_rate_percent wajib berupa angka p.a., bukan teks.
 - Jika stock_lot_mode = "auto", cari dan prioritaskan saham IDX yang biaya 1 lot (100 lembar) <= stock_lot_budget.
 - Untuk setiap rekomendasi saham, pertimbangkan harga per lembar, estimasi biaya 1 lot, likuiditas, volatilitas/pergerakan terbaru, kualitas data, dividen terbaru bila tersedia, dividend yield perkiraan bila tersedia, dan kecocokan dengan profil risiko.
 - Dividen tidak boleh dianggap pasti berulang. Jika data dividen berasal dari pencarian web/fallback dan belum terverifikasi, tulis sebagai informasi historis/indikatif.
@@ -1482,7 +1877,7 @@ ${JSON.stringify(payload)}
     const rr = await fetch(bridge+'/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json','X-KosFlow-Token':token},
-      body: JSON.stringify({model, prompt, temperature:.10})
+      body: JSON.stringify({model, prompt, temperature:.10, schema:analysisSchema})
     });
     const ai = await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
     if(!rr.ok){
@@ -1500,8 +1895,13 @@ ${JSON.stringify(payload)}
     document.getElementById('heroSub').textContent = `${budget.initial_days} hari target • bayar aktual ${idr(budget.initial_kos_payment)} • sendiri ${idr(budget.kos_self_contribution)} • orang tua ${idr(budget.kos_parent_contribution)} • sisa kos ${idr(budget.remaining_kos)}${budget.initial_kos_funding_gap>0 ? ' • kurang bayar awal '+idr(budget.initial_kos_funding_gap) : ''}`;
     document.getElementById('payKos').textContent = idr(budget.initial_kos_payment);
     document.getElementById('remainingKos').textContent = idr(budget.remaining_kos);
+    document.getElementById('nextKosPayment').textContent =
+      budget.next_kos_payment_date ? formatDateID(parseLocalDate(budget.next_kos_payment_date)) : '—';
     document.getElementById('apps').textContent = `${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
     document.getElementById('safe').textContent = idr(budget.safe_investment_amount);
+    document.getElementById('personalAvailableHero').textContent = idr(budget.personal_available_balance);
+    document.getElementById('parentKosHero').textContent = idr(budget.kos_parent_contribution);
+    updateAutoMoneyPreview();
     document.getElementById('kosSourceView').textContent = `${budget.kos_source_label} • ${budget.kos_funding_scope_label||''}`;
     document.getElementById('miniCash').textContent = idr(budget.cash_after_initial_kos);
     document.getElementById('miniCash2').textContent = idr(budget.cash_after_initial_kos);
@@ -1545,16 +1945,25 @@ ${JSON.stringify(payload)}
       </div>
     `).join('');
 
-    const parsed = tryParseJSON(ai.response || '');
-    if(parsed) renderAnalysisCardsFromJSON(parsed, ai.response || '');
-    else renderFallbackCards(ai.response || '', budget);
+    let rawAI=ai.response || '';
+    let parsed=tryParseJSON(rawAI);
+    if(!isExpectedAnalysisShape(parsed)){
+      step('ollama',94,'Memperbaiki format hasil AI menjadi card terstruktur');
+      const repairPrompt=`Ubah output berikut menjadi JSON valid SESUAI schema yang diberikan. Jangan tambah fakta baru. Jika informasi tidak ada, gunakan array kosong atau string singkat. Output mentah:\n${rawAI}`;
+      const repairRes=await fetch(bridge+'/generate',{method:'POST',headers:{'Content-Type':'application/json','X-KosFlow-Token':token},body:JSON.stringify({model,prompt:repairPrompt,temperature:0,schema:analysisSchema})});
+      const repaired=await repairRes.json().catch(()=>({}));
+      if(repairRes.ok && repaired.response){rawAI=repaired.response;parsed=tryParseJSON(rawAI);}
+    }
+    if(isExpectedAnalysisShape(parsed)) renderAnalysisCardsFromJSON(parsed, rawAI);
+    else renderFallbackCards(rawAI, budget);
+    renderBankSimulation(parsed||{},budget);
 
     document.getElementById('modelUsed').textContent = model;
 
-    const savedAnalysis={budget,crypto,stocks,banks,funds,parsed,raw:ai.response||'',model,created_at:new Date().toISOString()};
+    const savedAnalysis={budget,crypto,stocks,banks,funds,parsed,raw:rawAI,model,created_at:new Date().toISOString()};
     localStorage.setItem(ANALYSIS_KEY,JSON.stringify(savedAnalysis));
     try{
-      await fetch('/api/analyses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:getDeviceId(),result_json:savedAnalysis,input_json:payload,ai_json:parsed,ai_raw:ai.response||'',model_name:model,market:{crypto,stocks},research:{banks,funds}})});
+      await fetch('/api/analyses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:getDeviceId(),result_json:savedAnalysis,input_json:payload,ai_json:parsed,ai_raw:rawAI,model_name:model,market:{crypto,stocks},research:{banks,funds}})});
     }catch(e){console.warn('Supabase analysis save failed',e)}
     await persistState(false);
 
@@ -1562,6 +1971,8 @@ ${JSON.stringify(payload)}
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('stockCandidatesWrap').classList.remove('hidden');
     document.getElementById('researchWrap').classList.remove('hidden');
+    document.getElementById('marketSimulationWrap').classList.remove('hidden');
+    document.getElementById('bankSimulationWrap').classList.remove('hidden');
     document.getElementById('aiWrap').classList.remove('hidden');
   }catch(e){
     alert(e.message);
@@ -1583,8 +1994,15 @@ document.getElementById('buffer').addEventListener('input', e=>{
   document.getElementById('miniSafe').textContent = idr(+e.target.value||0);
   document.getElementById('miniSafe2').textContent = idr(+e.target.value||0);
 });
-['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','notes','kosSource','model'].forEach(id=>{
+['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','bankSimulationAmount','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct','notes','kosSource','model'].forEach(id=>{
   const el=document.getElementById(id); if(el){el.addEventListener('input',scheduleSave);el.addEventListener('change',scheduleSave)}
+});
+
+['bankSimulationAmount','bankSimulationMonths','bankCompoundFrequency','marketSimulationMonths','marketBearGrowthPct','marketBaseGrowthPct','marketBullGrowthPct'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('change',()=>{
+    try{const saved=JSON.parse(localStorage.getItem(ANALYSIS_KEY)||'null');if(saved?.parsed&&saved?.budget)renderBankSimulation(saved.parsed,saved.budget)}catch(e){}
+  });
 });
 
 (async function initKosFlow(){

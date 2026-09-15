@@ -266,6 +266,8 @@ BANK_OFFICIAL_PAGES = {
     ],
     "Bank Saqu": [
         "https://banksaqu.co.id/blog/informasi-bunga-saku-nabung",
+        "https://banksaqu.co.id/products/saku-booster-11",
+        "https://banksaqu.co.id/blog/deposito-saku-gajian",
         "https://banksaqu.co.id/products/deposito-reguler-10",
         "https://banksaqu.co.id/blog/update-suku-bunga-deposito-reguler-mulai-1-november-2025",
     ],
@@ -282,6 +284,7 @@ BANK_OFFICIAL_PAGES = {
     ],
     "Superbank": [
         "https://www.superbank.id/",
+        "https://www.superbank.id/content/produk-layanan/tabungan/celengan/Ringkasan%20Informasi%20Produk%20dan%20Layanan.pdf",
     ],
 }
 
@@ -316,6 +319,49 @@ def _extract_interest_snippet(text, max_len=500):
     return text[start:start + max_len].strip()
 
 
+
+def _extract_rate_facts(text, max_facts=4):
+    """Extract percentage mentions with short surrounding context."""
+    if not text:
+        return []
+    clean = re.sub(r"\s+", " ", text).strip()
+    facts = []
+    seen = set()
+    # Match common Indonesian rate notation: 10%, 7.75%, 7,5% p.a.
+    for m in re.finditer(r"(?<!\d)(\d{1,2}(?:[.,]\d{1,3})?)\s*%(?:\s*(?:p\.?\s*a\.?|per\s+annum|per\s+tahun))?", clean, re.I):
+        raw_rate = m.group(1).replace(",", ".")
+        try:
+            val = float(raw_rate)
+        except Exception:
+            continue
+        if val < 0 or val > 30:
+            continue
+        start = max(0, m.start()-75)
+        end = min(len(clean), m.end()+95)
+        context = clean[start:end].strip(" -|:;,")
+        key = (round(val,4), context.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        facts.append({
+            "rate": f"{val:g}% p.a.",
+            "rate_percent": val,
+            "context": context[:180],
+        })
+        if len(facts) >= max_facts:
+            break
+    return facts
+
+
+def _attach_rate_facts(item):
+    text = " ".join([
+        str(item.get("title") or ""),
+        str(item.get("snippet") or ""),
+    ])
+    item["rate_facts"] = _extract_rate_facts(text)
+    return item
+
+
 async def fetch_official_bank_pages(bank_name):
     out = []
     for url in BANK_OFFICIAL_PAGES.get(bank_name, []):
@@ -331,14 +377,14 @@ async def fetch_official_bank_pages(bank_name):
                 if title_match
                 else f"{bank_name} official rates"
             )
-            out.append({
+            out.append(_attach_rate_facts({
                 "category": "Bank digital • " + bank_name,
                 "title": title[:180],
                 "snippet": snippet,
                 "url": url,
                 "source_type": "official-direct",
                 "official_hint": True,
-            })
+            }))
         except Exception:
             pass
     return out
@@ -416,6 +462,7 @@ async def bank_search(names_text, rate_ranges_text=''):
                     continue
                 seen.add(key)
                 item.setdefault("source_type", "web-search")
+                _attach_rate_facts(item)
                 bank_items.append(item)
 
         # Keep official results first, then fallback search results.
@@ -707,7 +754,11 @@ async def load_state(device_id):
     if fin:
         f=fin[0]
         settings={
-            "cash":f.get("cash"),"allowance":f.get("allowance"),"income_weekly_min":f.get("income_weekly_min") or 0,"income_weekly_max":f.get("income_weekly_max") or 0,"monthly_kos":f.get("monthly_kos"),"weeks":f.get("weeks"),"buffer":f.get("buffer"),"weekly_needs":f.get("weekly_needs"),"risk":f.get("risk"),"stocks":f.get("stocks"),"stock_lot_mode":f.get("stock_lot_mode") or "auto","stock_lot_budget":f.get("stock_lot_budget") or 100000,"stock_recommendation_count":f.get("stock_recommendation_count") or 5,"banks":f.get("banks"),"bank_interest_ranges":f.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":f.get("notes"),"kos_source":f.get("kos_source"),"kos_self_contribution":f.get("kos_self_contribution") or 0,"kos_parent_contribution":f.get("kos_parent_contribution") or 0,"kos_cycle_start":f.get("kos_cycle_start"),"kos_funding_scope":f.get("kos_funding_scope") or "current_cycle","bridge_url":pair[0].get("bridge_url") if pair else None,"model_name":pair[0].get("model_name") if pair else None,
+            "cash":f.get("cash"),"allowance":f.get("allowance"),"income_weekly_min":f.get("income_weekly_min") or 0,"income_weekly_max":f.get("income_weekly_max") or 0,"monthly_kos":f.get("monthly_kos"),"weeks":f.get("weeks"),"buffer":f.get("buffer"),"weekly_needs":f.get("weekly_needs"),"risk":f.get("risk"),"stocks":f.get("stocks"),"stock_lot_mode":f.get("stock_lot_mode") or "auto","stock_lot_budget":f.get("stock_lot_budget") or 100000,"stock_recommendation_count":f.get("stock_recommendation_count") or 5,"banks":f.get("banks"),"bank_interest_ranges":f.get("bank_interest_ranges") or ["0.5-4","4-6"],"bank_simulation_amount":f.get("bank_simulation_amount") or 0,"bank_simulation_months":f.get("bank_simulation_months") or 12,"bank_compound_frequency":f.get("bank_compound_frequency") or 12,
+                    "market_simulation_months":f.get("market_simulation_months") or 12,
+                    "market_bear_growth_pct":f.get("market_bear_growth_pct") if f.get("market_bear_growth_pct") is not None else -10,
+                    "market_base_growth_pct":f.get("market_base_growth_pct") if f.get("market_base_growth_pct") is not None else 8,
+                    "market_bull_growth_pct":f.get("market_bull_growth_pct") if f.get("market_bull_growth_pct") is not None else 20,"notes":f.get("notes"),"kos_source":f.get("kos_source"),"kos_self_contribution":f.get("kos_self_contribution") or 0,"kos_parent_contribution":f.get("kos_parent_contribution") or 0,"kos_cycle_start":f.get("kos_cycle_start"),"kos_funding_scope":f.get("kos_funding_scope") or "current_cycle","bridge_url":pair[0].get("bridge_url") if pair else None,"model_name":pair[0].get("model_name") if pair else None,
         }
     return {"cloud_configured":True,"state":{"settings":settings,"pairing":pair[0] if pair else None}}
 
@@ -719,7 +770,11 @@ async def save_state(payload):
     pairing=payload.get("pairing") or {}; settings=payload.get("settings") or {}
     pair_body={"device_id":did,"bridge_url":pairing.get("bridge_url"),"model_name":pairing.get("model_name"),"token_ciphertext":pairing.get("token_ciphertext"),"token_iv":pairing.get("token_iv")}
     await sb_request("POST","ollama_pairings",{"on_conflict":"device_id"},pair_body,"resolution=merge-duplicates,return=minimal")
-    fin_body={"device_id":did,"cash":settings.get("cash"),"allowance":settings.get("allowance"),"income_weekly_min":settings.get("income_weekly_min") or 0,"income_weekly_max":settings.get("income_weekly_max") or 0,"monthly_kos":settings.get("monthly_kos"),"weeks":settings.get("weeks"),"buffer":settings.get("buffer"),"weekly_needs":settings.get("weekly_needs"),"risk":settings.get("risk"),"stocks":settings.get("stocks"),"stock_lot_mode":settings.get("stock_lot_mode") or "auto","stock_lot_budget":settings.get("stock_lot_budget") or 100000,"stock_recommendation_count":settings.get("stock_recommendation_count") or 5,"banks":settings.get("banks"),"bank_interest_ranges":settings.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":settings.get("notes"),"kos_source":settings.get("kos_source"),"kos_self_contribution":settings.get("kos_self_contribution") or 0,"kos_parent_contribution":settings.get("kos_parent_contribution") or 0,"kos_cycle_start":settings.get("kos_cycle_start"),"kos_funding_scope":settings.get("kos_funding_scope") or "current_cycle"}
+    fin_body={"device_id":did,"cash":settings.get("cash"),"allowance":settings.get("allowance"),"income_weekly_min":settings.get("income_weekly_min") or 0,"income_weekly_max":settings.get("income_weekly_max") or 0,"monthly_kos":settings.get("monthly_kos"),"weeks":settings.get("weeks"),"buffer":settings.get("buffer"),"weekly_needs":settings.get("weekly_needs"),"risk":settings.get("risk"),"stocks":settings.get("stocks"),"stock_lot_mode":settings.get("stock_lot_mode") or "auto","stock_lot_budget":settings.get("stock_lot_budget") or 100000,"stock_recommendation_count":settings.get("stock_recommendation_count") or 5,"banks":settings.get("banks"),"bank_interest_ranges":settings.get("bank_interest_ranges") or ["0.5-4","4-6"],"bank_simulation_amount":settings.get("bank_simulation_amount") or 0,"bank_simulation_months":settings.get("bank_simulation_months") or 12,"bank_compound_frequency":settings.get("bank_compound_frequency") or 12,
+                         "market_simulation_months":settings.get("market_simulation_months") or 12,
+                         "market_bear_growth_pct":settings.get("market_bear_growth_pct") if settings.get("market_bear_growth_pct") is not None else -10,
+                         "market_base_growth_pct":settings.get("market_base_growth_pct") if settings.get("market_base_growth_pct") is not None else 8,
+                         "market_bull_growth_pct":settings.get("market_bull_growth_pct") if settings.get("market_bull_growth_pct") is not None else 20,"notes":settings.get("notes"),"kos_source":settings.get("kos_source"),"kos_self_contribution":settings.get("kos_self_contribution") or 0,"kos_parent_contribution":settings.get("kos_parent_contribution") or 0,"kos_cycle_start":settings.get("kos_cycle_start"),"kos_funding_scope":settings.get("kos_funding_scope") or "current_cycle"}
     await sb_request("POST","finance_settings",{"on_conflict":"device_id"},fin_body,"resolution=merge-duplicates,return=minimal")
     return {"cloud_saved":True}
 

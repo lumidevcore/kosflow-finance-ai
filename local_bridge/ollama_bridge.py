@@ -54,7 +54,7 @@ def ollama_json(path, method="GET", payload=None, timeout=300):
     return status, data
 
 class H(BaseHTTPRequestHandler):
-    server_version = "KosFlowLocalBridge/10.7"
+    server_version = "KosFlowLocalBridge/10.13"
 
     def cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -132,29 +132,35 @@ class H(BaseHTTPRequestHandler):
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "format": "json",
+                "format": p.get("schema") or "json",
                 "keep_alive": "5m",
                 "options": {
                     "temperature": float(p.get("temperature", 0.10)),
-                    "num_predict": 1200,
+                    "num_predict": 1600,
                 },
             }
 
             try:
                 status, data = ollama_json("/api/generate", "POST", req, timeout=360)
 
-                # Some models/builds may reject format=json. Retry once without it.
+                # Structured schema may not be supported by every model/build.
+                # Retry as generic JSON, then once without format.
                 if status >= 400:
                     first_error = data
-                    req.pop("format", None)
+                    req["format"] = "json"
                     status, data = ollama_json("/api/generate", "POST", req, timeout=360)
                     if status >= 400:
-                        return self.reply({
-                            "error":"Ollama generation failed",
-                            "ollama_error":data,
-                            "first_attempt":first_error,
-                            "model":model,
-                        }, 502)
+                        second_error = data
+                        req.pop("format", None)
+                        status, data = ollama_json("/api/generate", "POST", req, timeout=360)
+                        if status >= 400:
+                            return self.reply({
+                                "error":"Ollama generation failed",
+                                "ollama_error":data,
+                                "schema_attempt":first_error,
+                                "json_attempt":second_error,
+                                "model":model,
+                            }, 502)
 
                 return self.reply({
                     "response":data.get("response", ""),
@@ -174,7 +180,7 @@ class H(BaseHTTPRequestHandler):
 
 def main():
     print("="*62)
-    print(" KosFlow Finance - Local Ollama Bridge v10.7")
+    print(" KosFlow Finance - Local Ollama Bridge v10.13")
     print("="*62)
     print(f"Bridge        : http://{HOST}:{PORT}")
     print(f"Ollama        : {OLLAMA}")

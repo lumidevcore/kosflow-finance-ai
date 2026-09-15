@@ -100,3 +100,47 @@ alter table public.finance_settings
 ```
 
 `current_cycle` berarti skema uang sendiri/orang tua/campuran hanya berlaku untuk satu periode kos. `ongoing` berarti skema yang sama dianggap berulang setiap bulan sampai pengguna mengubahnya.
+
+
+## Update v10.11 — Simulasi penempatan bank & compounding
+Jika database v10.10 sudah ada, jalankan:
+```sql
+alter table public.finance_settings add column if not exists bank_simulation_amount numeric(18,2) not null default 0;
+alter table public.finance_settings add column if not exists bank_simulation_months integer not null default 12;
+alter table public.finance_settings add column if not exists bank_compound_frequency integer not null default 12;
+```
+Simulasi menghitung nilai akhir berdasarkan rate p.a. terverifikasi yang dipilih AI. Hasil bruto sebelum pajak/biaya.
+
+
+## Update v10.12 — Tanggal bayar selanjutnya + simulasi market
+
+Jika database v10.11 sudah ada, jalankan:
+
+```sql
+alter table public.finance_settings
+  add column if not exists market_simulation_months integer not null default 12;
+alter table public.finance_settings
+  add column if not exists market_bear_growth_pct numeric(8,3) not null default -10;
+alter table public.finance_settings
+  add column if not exists market_base_growth_pct numeric(8,3) not null default 8;
+alter table public.finance_settings
+  add column if not exists market_bull_growth_pct numeric(8,3) not null default 20;
+```
+
+Tanggal bayar kos berikutnya dihitung di browser dari `kos_cycle_start` + jumlah hari pembayaran awal.
+Tidak memerlukan kolom database baru.
+
+
+## Update v10.13 — Pemisahan saldo pribadi, dana orang tua, dan dana aman otomatis
+
+Tidak ada kolom Supabase baru.
+
+Perubahan memakai kolom yang sudah ada:
+- `cash` = saldo pribadi sekarang
+- `allowance` = uang saku per minggu
+- `weekly_needs` = kebutuhan per minggu
+- `buffer` = dana aman otomatis (`allowance - weekly_needs`)
+- `kos_self_contribution` = kontribusi kos dari saldo pribadi
+- `kos_parent_contribution` = dana orang tua khusus kos
+
+Jadi migration SQL baru tidak diperlukan untuk v10.13.
