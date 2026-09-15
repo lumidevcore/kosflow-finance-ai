@@ -1,4 +1,4 @@
--- KosFlow Finance v10.7 - Supabase schema
+-- KosFlow Finance v10.10 - Supabase schema
 -- Jalankan seluruh file ini di Supabase > SQL Editor > New query > Run.
 
 create extension if not exists pgcrypto;
@@ -26,6 +26,8 @@ create table if not exists public.finance_settings (
   device_id uuid not null unique references public.devices(id) on delete cascade,
   cash numeric(18,2) not null default 0,
   allowance numeric(18,2) not null default 0,
+  income_weekly_min numeric(18,2) not null default 0,
+  income_weekly_max numeric(18,2) not null default 0,
   monthly_kos numeric(18,2) not null default 0,
   weeks integer not null default 2 check (weeks > 0),
   buffer numeric(18,2) not null default 0,
@@ -39,6 +41,10 @@ create table if not exists public.finance_settings (
   bank_interest_ranges jsonb not null default '["0.5-4","4-6"]'::jsonb,
   notes text,
   kos_source text not null default 'self' check (kos_source in ('self','parent','mixed')),
+  kos_self_contribution numeric(18,2) not null default 0,
+  kos_parent_contribution numeric(18,2) not null default 0,
+  kos_cycle_start date,
+  kos_funding_scope text not null default 'current_cycle' check (kos_funding_scope in ('current_cycle','ongoing')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -105,7 +111,26 @@ alter table public.research_sources enable row level security;
 -- Tidak membuat policy publik. Service role backend tetap dapat mengakses data.
 
 
--- v10.7 migration: multi-select range bunga bank
+-- v10.10 migration: multi-select range bunga bank
 alter table public.finance_settings
   add column if not exists bank_interest_ranges jsonb
   not null default '["0.5-4","4-6"]'::jsonb;
+
+
+-- v10.10 migration: pendapatan manual + pembagian pembayaran kos
+alter table public.finance_settings
+  add column if not exists income_weekly_min numeric(18,2) not null default 0;
+alter table public.finance_settings
+  add column if not exists income_weekly_max numeric(18,2) not null default 0;
+alter table public.finance_settings
+  add column if not exists kos_self_contribution numeric(18,2) not null default 0;
+alter table public.finance_settings
+  add column if not exists kos_parent_contribution numeric(18,2) not null default 0;
+
+
+-- v10.10 migration: periode berlakunya pembagian pembayaran kos
+alter table public.finance_settings
+  add column if not exists kos_cycle_start date;
+alter table public.finance_settings
+  add column if not exists kos_funding_scope text
+  not null default 'current_cycle';

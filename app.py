@@ -257,6 +257,7 @@ BANK_DOMAINS = {
     "Bank Neo Commerce": ["bankneo.co.id", "bankneocommerce.co.id"],
     "Krom Bank": ["krom.id"],
     "SeaBank": ["seabank.co.id"],
+    "Superbank": ["superbank.id"],
 }
 
 BANK_OFFICIAL_PAGES = {
@@ -279,6 +280,9 @@ BANK_OFFICIAL_PAGES = {
     "SeaBank": [
         "https://www.seabank.co.id/produk-layanan/konvensional",
     ],
+    "Superbank": [
+        "https://www.superbank.id/",
+    ],
 }
 
 
@@ -292,7 +296,7 @@ def _clean_html_text(body):
     return text
 
 
-def _extract_interest_snippet(text, max_len=1600):
+def _extract_interest_snippet(text, max_len=500):
     if not text:
         return ""
     lowered = text.lower()
@@ -474,6 +478,59 @@ async def fund_search():
 
 
 
+def _parse_dividend_per_share(text):
+    if not text:
+        return None
+    patterns = [
+        r"(?:dividen(?: tunai)?(?: sebesar)?|dividend)\s*(?:Rp\.?\s*)?([0-9][0-9.,]*)\s*(?:per|/)\s*(?:saham|share)",
+        r"Rp\.?\s*([0-9][0-9.,]*)\s*(?:per|/)\s*(?:saham|share)",
+    ]
+    for p in patterns:
+        m = re.search(p, text, re.I)
+        if m:
+            raw=m.group(1).replace('.', '').replace(',', '.')
+            try: return float(raw)
+            except Exception: pass
+    return None
+
+
+async def find_dividend_info(symbol, price=None):
+    year=datetime.now().year
+    queries=[
+        f'"{symbol}" dividen tunai {year} per saham IDX',
+        f'"{symbol}" dividen {year} per saham',
+        f'"{symbol}" dividend yield Indonesia {year}',
+    ]
+    seen=set(); results=[]
+    for q in queries:
+        for item in await ddg_search(q, f'Dividen • {symbol}', 3):
+            key=item.get('url') or item.get('title')
+            if key in seen: continue
+            seen.add(key); results.append(item)
+        if results: break
+    snippet=' '.join([(x.get('title','')+' '+x.get('snippet','')).strip() for x in results[:2]])
+    dps=_parse_dividend_per_share(snippet)
+    dy=(dps/float(price)*100.0) if dps is not None and price else None
+    return {
+        'dividend_per_share': dps,
+        'dividend_yield_estimate': dy,
+        'dividend_title': results[0].get('title') if results else None,
+        'dividend_snippet': results[0].get('snippet') if results else None,
+        'dividend_source_url': results[0].get('url') if results else None,
+        'dividend_sources': results[:3],
+    }
+
+
+async def enrich_dividends(items):
+    for item in items:
+        try:
+            info=await find_dividend_info(item.get('symbol',''), item.get('price'))
+            item.update(info)
+        except Exception:
+            pass
+    return items
+
+
 IDX_CANDIDATE_UNIVERSE = [
     "BBCA","BBRI","BMRI","BBNI","TLKM","ASII","ICBP","INDF","UNVR","PGAS",
     "ANTM","PTBA","ADRO","MDKA","BRIS","EXCL","ISAT","GOTO","BUKA","ACES",
@@ -515,7 +572,9 @@ async def discover_affordable_stocks(max_lot_budget, limit=5):
             abs(float(x.get("change_percent") or 0)),
         )
     )
-    return items[:limit]
+    picked=items[:limit]
+    await enrich_dividends(picked)
+    return picked
 
 
 async def combined_research(names_text, symbols_text, rate_ranges_text='', stock_lot_mode='manual', stock_lot_budget=0, stock_recommendation_count=5):
@@ -543,6 +602,7 @@ async def combined_research(names_text, symbols_text, rate_ranges_text='', stock
                 item["lot_size"] = 100
                 item["lot_cost"] = float(item["price"]) * 100.0
         stocks["mode"] = "manual"
+        await enrich_dividends(stocks.get("items", []))
     crypto = await crypto_snapshot()
 
     return {
@@ -647,7 +707,7 @@ async def load_state(device_id):
     if fin:
         f=fin[0]
         settings={
-            "cash":f.get("cash"),"allowance":f.get("allowance"),"monthly_kos":f.get("monthly_kos"),"weeks":f.get("weeks"),"buffer":f.get("buffer"),"weekly_needs":f.get("weekly_needs"),"risk":f.get("risk"),"stocks":f.get("stocks"),"stock_lot_mode":f.get("stock_lot_mode") or "auto","stock_lot_budget":f.get("stock_lot_budget") or 100000,"stock_recommendation_count":f.get("stock_recommendation_count") or 5,"banks":f.get("banks"),"bank_interest_ranges":f.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":f.get("notes"),"kos_source":f.get("kos_source"),"bridge_url":pair[0].get("bridge_url") if pair else None,"model_name":pair[0].get("model_name") if pair else None,
+            "cash":f.get("cash"),"allowance":f.get("allowance"),"income_weekly_min":f.get("income_weekly_min") or 0,"income_weekly_max":f.get("income_weekly_max") or 0,"monthly_kos":f.get("monthly_kos"),"weeks":f.get("weeks"),"buffer":f.get("buffer"),"weekly_needs":f.get("weekly_needs"),"risk":f.get("risk"),"stocks":f.get("stocks"),"stock_lot_mode":f.get("stock_lot_mode") or "auto","stock_lot_budget":f.get("stock_lot_budget") or 100000,"stock_recommendation_count":f.get("stock_recommendation_count") or 5,"banks":f.get("banks"),"bank_interest_ranges":f.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":f.get("notes"),"kos_source":f.get("kos_source"),"kos_self_contribution":f.get("kos_self_contribution") or 0,"kos_parent_contribution":f.get("kos_parent_contribution") or 0,"kos_cycle_start":f.get("kos_cycle_start"),"kos_funding_scope":f.get("kos_funding_scope") or "current_cycle","bridge_url":pair[0].get("bridge_url") if pair else None,"model_name":pair[0].get("model_name") if pair else None,
         }
     return {"cloud_configured":True,"state":{"settings":settings,"pairing":pair[0] if pair else None}}
 
@@ -659,7 +719,7 @@ async def save_state(payload):
     pairing=payload.get("pairing") or {}; settings=payload.get("settings") or {}
     pair_body={"device_id":did,"bridge_url":pairing.get("bridge_url"),"model_name":pairing.get("model_name"),"token_ciphertext":pairing.get("token_ciphertext"),"token_iv":pairing.get("token_iv")}
     await sb_request("POST","ollama_pairings",{"on_conflict":"device_id"},pair_body,"resolution=merge-duplicates,return=minimal")
-    fin_body={"device_id":did,"cash":settings.get("cash"),"allowance":settings.get("allowance"),"monthly_kos":settings.get("monthly_kos"),"weeks":settings.get("weeks"),"buffer":settings.get("buffer"),"weekly_needs":settings.get("weekly_needs"),"risk":settings.get("risk"),"stocks":settings.get("stocks"),"stock_lot_mode":settings.get("stock_lot_mode") or "auto","stock_lot_budget":settings.get("stock_lot_budget") or 100000,"stock_recommendation_count":settings.get("stock_recommendation_count") or 5,"banks":settings.get("banks"),"bank_interest_ranges":settings.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":settings.get("notes"),"kos_source":settings.get("kos_source")}
+    fin_body={"device_id":did,"cash":settings.get("cash"),"allowance":settings.get("allowance"),"income_weekly_min":settings.get("income_weekly_min") or 0,"income_weekly_max":settings.get("income_weekly_max") or 0,"monthly_kos":settings.get("monthly_kos"),"weeks":settings.get("weeks"),"buffer":settings.get("buffer"),"weekly_needs":settings.get("weekly_needs"),"risk":settings.get("risk"),"stocks":settings.get("stocks"),"stock_lot_mode":settings.get("stock_lot_mode") or "auto","stock_lot_budget":settings.get("stock_lot_budget") or 100000,"stock_recommendation_count":settings.get("stock_recommendation_count") or 5,"banks":settings.get("banks"),"bank_interest_ranges":settings.get("bank_interest_ranges") or ["0.5-4","4-6"],"notes":settings.get("notes"),"kos_source":settings.get("kos_source"),"kos_self_contribution":settings.get("kos_self_contribution") or 0,"kos_parent_contribution":settings.get("kos_parent_contribution") or 0,"kos_cycle_start":settings.get("kos_cycle_start"),"kos_funding_scope":settings.get("kos_funding_scope") or "current_cycle"}
     await sb_request("POST","finance_settings",{"on_conflict":"device_id"},fin_body,"resolution=merge-duplicates,return=minimal")
     return {"cloud_saved":True}
 

@@ -62,3 +62,41 @@ Fitur:
 - Mode otomatis mencari kandidat saham yang estimasi biaya 1 lot <= budget pengguna.
 - Pengguna dapat memilih 3, 5, 8, atau 10 kandidat.
 - Setting disimpan ke local storage dan Supabase.
+
+
+## Update v10.9 — pendapatan manual, pembagian kos, dan dividen saham
+
+Jalankan migration berikut jika database sebelumnya sudah ada:
+
+```sql
+alter table public.finance_settings
+  add column if not exists income_weekly_min numeric(18,2) not null default 0;
+alter table public.finance_settings
+  add column if not exists income_weekly_max numeric(18,2) not null default 0;
+alter table public.finance_settings
+  add column if not exists kos_self_contribution numeric(18,2) not null default 0;
+alter table public.finance_settings
+  add column if not exists kos_parent_contribution numeric(18,2) not null default 0;
+```
+
+Fitur baru:
+- Pendapatan aplikasi/tambahan per minggu diisi manual min/max.
+- Uang saku, pendapatan aplikasi, dan pembayaran kos dipisahkan.
+- Sumber kos `self`, `parent`, atau `mixed` menampilkan input nominal yang sesuai.
+- Riset saham mencari info dividen terbaru dan dividend yield indikatif jika data per-saham ditemukan.
+
+
+## Update v10.10 — periode skema pembayaran kos
+
+Jika database sudah dibuat sebelumnya, jalankan:
+
+```sql
+alter table public.finance_settings
+  add column if not exists kos_cycle_start date;
+
+alter table public.finance_settings
+  add column if not exists kos_funding_scope text
+  not null default 'current_cycle';
+```
+
+`current_cycle` berarti skema uang sendiri/orang tua/campuran hanya berlaku untuk satu periode kos. `ongoing` berarti skema yang sama dianggap berulang setiap bulan sampai pengguna mengubahnya.

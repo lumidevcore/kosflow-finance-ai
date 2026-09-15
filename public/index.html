@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.7</title>
+<title>KosFlow Finance v10.10</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -492,6 +492,20 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
         <div class="grid2">
           <div class="field">
+            <label>Pendapatan tambahan/app per minggu — minimum</label>
+            <input id="incomeMin" type="number" value="48419" min="0" step="1000" />
+          </div>
+          <div class="field">
+            <label>Pendapatan tambahan/app per minggu — maksimum</label>
+            <input id="incomeMax" type="number" value="86219" min="0" step="1000" />
+          </div>
+        </div>
+        <div class="note" style="margin-bottom:14px">
+          Pendapatan tambahan dibuat manual karena hasil aplikasi bisa berubah tiap minggu. Uang saku tetap dipisahkan dari pendapatan aplikasi dan dari sumber pembayaran kos.
+        </div>
+
+        <div class="grid2">
+          <div class="field">
             <label>Kos / bulan</label>
             <input id="kos" type="number" value="700000" />
           </div>
@@ -502,12 +516,43 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         </div>
 
         <div class="field">
-          <label>Sumber pembayaran kos</label>
+          <label>Sumber pembayaran kos awal</label>
           <select id="kosSource">
-            <option value="self" selected>Uang saku / saldo sendiri</option>
-            <option value="parent">Dibayar orang tua</option>
-            <option value="mixed">Campuran — bayar awal sendiri, sisa orang tua</option>
+            <option value="self" selected>Uang sendiri</option>
+            <option value="parent">Orang tua</option>
+            <option value="mixed">Campuran — uang sendiri + orang tua</option>
           </select>
+        </div>
+
+        <div id="kosFundingBox">
+          <div class="field" id="selfKosField">
+            <label>Nominal kos dari uang sendiri</label>
+            <input id="kosSelfContribution" type="number" value="330000" min="0" step="1000" />
+          </div>
+          <div class="field hidden" id="parentKosField">
+            <label>Nominal kos dari orang tua</label>
+            <input id="kosParentContribution" type="number" value="0" min="0" step="1000" />
+          </div>
+          <div class="note" id="kosFundingHint" style="margin-bottom:14px">
+            Nominal pembayaran kos dipisahkan dari uang saku mingguan.
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Awal periode kos</label>
+            <input id="kosCycleStart" type="date" value="2026-09-14" />
+          </div>
+          <div class="field">
+            <label>Berlaku sampai</label>
+            <select id="kosFundingScope">
+              <option value="current_cycle" selected>Hanya 1 bulan / periode ini</option>
+              <option value="ongoing">Seterusnya setiap bulan</option>
+            </select>
+          </div>
+        </div>
+        <div class="note" id="kosScopeHint" style="margin-bottom:14px">
+          Untuk periode sekarang: 14 September 2026 – 14 Oktober 2026. Setelah periode selesai, sumber pembayaran bisa diatur ulang.
         </div>
 
         <div class="grid2">
@@ -560,12 +605,12 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
         </div>
 
         <div class="note" style="margin-bottom:14px">
-          1 lot saham Indonesia = <b>100 lembar</b>. Saat mode otomatis aktif, AI akan mencari saham IDX yang estimasi biaya 1 lot-nya tidak melebihi batas dana ini, lalu membandingkan kandidat yang paling sesuai.
+          1 lot saham Indonesia = <b>100 lembar</b>. Saat mode otomatis aktif, AI akan mencari saham IDX yang estimasi biaya 1 lot-nya tidak melebihi batas dana ini, lalu membandingkan kandidat yang paling sesuai. Sistem juga mencari informasi dividen terbaru untuk tiap kandidat.
         </div>
 
         <div class="field">
           <label>Bank digital</label>
-          <input id="banks" value="Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank,SeaBank" />
+          <input id="banks" value="Bank Jago,Bank Saqu,Bank Neo Commerce,Krom Bank,SeaBank,Superbank" />
         </div>
 
         <div class="field">
@@ -736,12 +781,63 @@ function applyBankRateRanges(ranges){
     cb.checked = wanted.includes(cb.value);
   });
 }
+function syncKosFundingUI(){
+  const mode=document.getElementById('kosSource')?.value || 'self';
+  const selfField=document.getElementById('selfKosField');
+  const parentField=document.getElementById('parentKosField');
+  if(selfField) selfField.classList.toggle('hidden', mode==='parent');
+  if(parentField) parentField.classList.toggle('hidden', mode==='self');
+  const hint=document.getElementById('kosFundingHint');
+  if(hint){
+    hint.textContent = mode==='mixed'
+      ? 'Isi nominal dari uang sendiri dan dari orang tua. Keduanya dihitung terpisah dari uang saku mingguan.'
+      : mode==='parent'
+      ? 'Isi nominal yang dibayarkan orang tua. Saldo pribadimu tidak dikurangi oleh bagian ini.'
+      : 'Isi nominal yang benar-benar kamu bayarkan dari uang sendiri.';
+  }
+}
+function addOneCalendarMonth(dateStr){
+  if(!dateStr) return '';
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const nextMonth=m===12?1:m+1;
+  const nextYear=m===12?y+1:y;
+  const lastDay=new Date(nextYear,nextMonth,0).getDate();
+  const day=Math.min(d,lastDay);
+  return `${nextYear}-${String(nextMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function formatDateID(dateStr){
+  if(!dateStr) return '-';
+  const d=new Date(dateStr+'T00:00:00');
+  return new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'long',year:'numeric'}).format(d);
+}
+function updateKosScopeHint(){
+  const start=document.getElementById('kosCycleStart')?.value || '';
+  const end=addOneCalendarMonth(start);
+  const scope=document.getElementById('kosFundingScope')?.value || 'current_cycle';
+  const hint=document.getElementById('kosScopeHint');
+  if(!hint) return;
+  if(scope==='ongoing'){
+    hint.textContent=`Skema pembayaran ini berlaku seterusnya mulai ${formatDateID(start)} dan diulang tiap periode bulanan.`;
+  }else{
+    hint.textContent=`Skema pembayaran ini hanya berlaku untuk ${formatDateID(start)} – ${formatDateID(end)}. Setelah itu sumber pembayaran dapat diatur ulang.`;
+  }
+}
+function compactSnippet(text,max=190){
+  const s=String(text||'').replace(/\\s+/g,' ').trim();
+  if(!s) return '';
+  return s.length>max ? s.slice(0,max).replace(/\\s+\\S*$/,'')+'…' : s;
+}
+function sourceHost(url){
+  try{return new URL(url).hostname.replace(/^www\\./,'')}catch(e){return url||''}
+}
 function gatherSettings(){
   return {
     bridge_url:document.getElementById('bridge').value.trim(),
     model_name:document.getElementById('model').value,
     cash:+document.getElementById('cash').value||0,
     allowance:+document.getElementById('allowance').value||0,
+    income_weekly_min:+document.getElementById('incomeMin').value||0,
+    income_weekly_max:+document.getElementById('incomeMax').value||0,
     monthly_kos:+document.getElementById('kos').value||0,
     weeks:+document.getElementById('weeks').value||1,
     buffer:+document.getElementById('buffer').value||0,
@@ -752,16 +848,19 @@ function gatherSettings(){
     banks:document.getElementById('banks').value,
     bank_interest_ranges:getSelectedBankRateRanges(),
     notes:document.getElementById('notes').value,
-    kos_source:document.getElementById('kosSource').value
+    kos_source:document.getElementById('kosSource').value,
+    kos_self_contribution:+document.getElementById('kosSelfContribution').value||0,
+    kos_parent_contribution:+document.getElementById('kosParentContribution').value||0
   };
 }
 function applySettings(s){
   if(!s) return;
-  const map={bridge:'bridge_url',cash:'cash',allowance:'allowance',kos:'monthly_kos',weeks:'weeks',buffer:'buffer',needs:'weekly_needs',risk:'risk',stocks:'stocks',banks:'banks',notes:'notes',kosSource:'kos_source'};
+  const map={bridge:'bridge_url',cash:'cash',allowance:'allowance',incomeMin:'income_weekly_min',incomeMax:'income_weekly_max',kos:'monthly_kos',weeks:'weeks',buffer:'buffer',needs:'weekly_needs',risk:'risk',stocks:'stocks',banks:'banks',notes:'notes',kosSource:'kos_source',kosSelfContribution:'kos_self_contribution',kosParentContribution:'kos_parent_contribution',kosCycleStart:'kos_cycle_start',kosFundingScope:'kos_funding_scope'};
   for(const [id,key] of Object.entries(map)){
     const el=document.getElementById(id); if(el && s[key]!==undefined && s[key]!==null) el.value=s[key];
   }
   applyBankRateRanges(s.bank_interest_ranges);
+  syncKosFundingUI();
 }
 async function persistState(show=false){
   try{
@@ -834,12 +933,22 @@ function bulletize(arr){
 }
 function mapObjectBullets(arr){
   if(!Array.isArray(arr) || !arr.length) return '<p>Tidak ada data.</p>';
-  return '<ul>' + arr.map(x=>{
-    if(typeof x === 'string') return `<li>${escapeHtml(x)}</li>`;
+  return '<div style="display:grid;gap:10px">' + arr.map(x=>{
+    if(typeof x === 'string') return `<div class="source">${escapeHtml(x)}</div>`;
     const t = x.title || x.name || 'Item';
     const d = x.detail || x.desc || x.reason || x.note || '';
-    return `<li><b>${escapeHtml(t)}</b>${d ? ' — ' + escapeHtml(d) : ''}</li>`;
-  }).join('') + '</ul>';
+    const evidence = x.evidence || x.basis || '';
+    const source = x.source || x.source_url || '';
+    const confidence = x.confidence || '';
+    return `
+      <div class="source">
+        <b>${escapeHtml(t)}</b>
+        ${d ? `<small>${escapeHtml(d)}</small>` : ''}
+        ${evidence ? `<small><strong>Dasar:</strong> ${escapeHtml(evidence)}</small>` : ''}
+        ${source ? `<small><strong>Sumber:</strong> ${escapeHtml(source)}</small>` : ''}
+        ${confidence ? `<small><strong>Keyakinan:</strong> ${escapeHtml(confidence)}</small>` : ''}
+      </div>`;
+  }).join('') + '</div>';
 }
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -920,7 +1029,7 @@ function renderFallbackCards(raw, budget){
       <h4>Saran sementara</h4>
       <ul>
         <li>Jika surplus aman masih nol, tunda investasi dulu.</li>
-        <li>Setelah cash flow stabil, baru pertimbangkan instrumen yang paling likuid.</li>
+        <li>Setelah cash flow stabil dan dana benar-benar sudah diterima, baru pertimbangkan instrumen yang paling likuid.</li>
       </ul>
     </article>
     <article class="raw-card" style="grid-column:1/-1">
@@ -1044,6 +1153,11 @@ window.addEventListener('pageshow', ()=>{
   cb.addEventListener('change', scheduleSave);
 });
 
+document.getElementById('kosSource').addEventListener('change', ()=>{ syncKosFundingUI(); scheduleSave(); });
+document.getElementById('kosCycleStart').addEventListener('change', ()=>{ updateKosScopeHint(); scheduleSave(); });
+document.getElementById('kosFundingScope').addEventListener('change', ()=>{ updateKosScopeHint(); scheduleSave(); });
+syncKosFundingUI();
+updateKosScopeHint();
 startCrypto();
 });
 
@@ -1058,6 +1172,8 @@ document.addEventListener('visibilitychange', ()=>{
   cb.addEventListener('change', scheduleSave);
 });
 
+document.getElementById('kosSource').addEventListener('change', ()=>{ syncKosFundingUI(); scheduleSave(); });
+syncKosFundingUI();
 startCrypto();
   }
 });
@@ -1135,59 +1251,60 @@ function step(key,p,msg){
 function calcBudget(){
   const cash = +document.getElementById('cash').value || 0;
   const allow = +document.getElementById('allowance').value || 0;
+  const incomeMin = +document.getElementById('incomeMin').value || 0;
+  const incomeMax = Math.max(incomeMin, +document.getElementById('incomeMax').value || 0);
   const kos = +document.getElementById('kos').value || 0;
   const weeks = +document.getElementById('weeks').value || 1;
   const needs = +document.getElementById('needs').value || 0;
   const buffer = +document.getElementById('buffer').value || 0;
   const kosSource = document.getElementById('kosSource').value;
+  const kosCycleStart = document.getElementById('kosCycleStart').value;
+  const kosCycleEnd = addOneCalendarMonth(kosCycleStart);
+  const kosFundingScope = document.getElementById('kosFundingScope').value;
 
-  const raw = kos / 30 * (weeks*7);
-  const pay = Math.ceil(raw / 10000) * 10000;
-  const remaining = Math.max(0, kos - pay);
+  const targetInitialPayment = Math.ceil((kos / 30 * (weeks*7)) / 10000) * 10000;
+  let ownInput = +document.getElementById('kosSelfContribution').value || 0;
+  let parentInput = +document.getElementById('kosParentContribution').value || 0;
 
-  let after = cash;
-  let selfKosBurden = 0;
-  let parentKosBurden = 0;
-  let sourceLabel = 'Uang saku / saldo sendiri';
+  if(kosSource === 'self') parentInput = 0;
+  if(kosSource === 'parent') ownInput = 0;
 
-  if(kosSource === 'self'){
-    after = cash - pay;
-    selfKosBurden = remaining;
-    sourceLabel = 'Uang saku / saldo sendiri';
-  }else if(kosSource === 'parent'){
-    after = cash;
-    parentKosBurden = kos;
-    sourceLabel = 'Dibayar orang tua';
-  }else{
-    after = cash - pay;
-    parentKosBurden = remaining;
-    sourceLabel = 'Campuran — awal sendiri, sisa orang tua';
-  }
+  // Jangan izinkan alokasi melebihi target bayar awal.
+  const ownPaid = Math.min(Math.max(0, ownInput), targetInitialPayment);
+  const parentPaid = Math.min(Math.max(0, parentInput), Math.max(0, targetInitialPayment-ownPaid));
+  const actualInitialPayment = ownPaid + parentPaid;
+  const fundingGap = Math.max(0, targetInitialPayment - actualInitialPayment);
+  const remaining = Math.max(0, kos - actualInitialPayment);
+  const after = cash - ownPaid;
 
-  const amin = (517 + 1400 + 5000) * 7;
-  const amax = (917 + 1400 + 10000) * 7;
+  let sourceLabel='Uang sendiri';
+  if(kosSource==='parent') sourceLabel='Orang tua';
+  if(kosSource==='mixed') sourceLabel='Campuran — uang sendiri + orang tua';
 
-  // Hanya beban kos yang benar-benar harus dibayar sendiri yang mengurangi surplus aman.
-  const safe = Math.max(
-    0,
-    after + allow + amin - needs - buffer - selfKosBurden
-  );
+  // Dana investasi sekarang hanya berasal dari saldo yang benar-benar tersedia.
+  const safe = Math.max(0, after - needs - buffer);
+  const projectedWeeklySurplusMin = Math.max(0, allow + incomeMin - needs);
+  const projectedWeeklySurplusMax = Math.max(0, allow + incomeMax - needs);
 
   return {
-    initial_kos_payment: pay,
+    target_initial_kos_payment: targetInitialPayment,
+    initial_kos_payment: actualInitialPayment,
+    initial_kos_funding_gap: fundingGap,
     remaining_kos: remaining,
     cash_after_initial_kos: after,
-    app_income_weekly_min: amin,
-    app_income_weekly_max: amax,
+    app_income_weekly_min: incomeMin,
+    app_income_weekly_max: incomeMax,
     safe_investment_amount: safe,
+    projected_weekly_surplus_min: projectedWeeklySurplusMin,
+    projected_weekly_surplus_max: projectedWeeklySurplusMax,
     buffer,
     weekly_needs: needs,
     allowance: allow,
     initial_days: weeks*7,
     kos_source: kosSource,
     kos_source_label: sourceLabel,
-    self_kos_burden: selfKosBurden,
-    parent_kos_burden: parentKosBurden
+    kos_self_contribution: ownPaid,
+    kos_parent_contribution: parentPaid
   };
 }
 
@@ -1195,16 +1312,16 @@ function renderSavedAnalysis(saved){
   if(!saved || !saved.budget) return;
   const {budget,crypto,stocks,banks,funds,parsed,raw,model}=saved;
   document.getElementById('cashAfter').textContent=idr(budget.cash_after_initial_kos);
-  document.getElementById('heroSub').textContent=`${budget.initial_days} hari dibayar • sisa kos ${idr(budget.remaining_kos)} • dana aman ${idr(budget.buffer)}`;
+  document.getElementById('heroSub').textContent=`${budget.initial_days} hari target • bayar aktual ${idr(budget.initial_kos_payment)} • sendiri ${idr(budget.kos_self_contribution||0)} • orang tua ${idr(budget.kos_parent_contribution||0)} • sisa kos ${idr(budget.remaining_kos)}`;
   document.getElementById('payKos').textContent=idr(budget.initial_kos_payment);
   document.getElementById('remainingKos').textContent=idr(budget.remaining_kos);
   document.getElementById('apps').textContent=`${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
   document.getElementById('safe').textContent=idr(budget.safe_investment_amount);
-  document.getElementById('kosSourceView').textContent=budget.kos_source_label||'-';
+  document.getElementById('kosSourceView').textContent=`${budget.kos_source_label||'-'} • ${budget.kos_funding_scope_label||''}`;
   document.getElementById('snapTime').textContent=crypto?.fetched_at||'—';
   document.getElementById('snapGrid').innerHTML=(crypto?.items||[]).map(x=>`<div class="snap"><b>${x.symbol} snapshot</b><small>${idr(x.price_idr||0)}</small><small>24j ${Number(x.change_24h||0).toFixed(2)}%</small><small>${x.source||''}</small></div>`).join('');
   const refs=[...(stocks?.items||[]),...(banks?.items||[]),...(funds?.items||[])];
-  document.getElementById('research').innerHTML=refs.map(x=>`<div class="source"><b>${x.symbol||x.category||'Sumber'}${x.title?' • '+x.title:''}</b><small>${x.snippet||(x.price!=null?idr(x.price):'')}</small><small>${x.source||x.url||''}</small></div>`).join('');
+  document.getElementById('research').innerHTML=refs.map(x=>`<div class="source"><b>${x.symbol||x.category||'Sumber'}${x.title?' • '+compactSnippet(x.title,70):''}</b><small>${compactSnippet(x.snippet||(x.price!=null?idr(x.price):''),190)}</small><small>${sourceHost(x.url||x.source||'')}</small></div>`).join('');
   if(parsed) renderAnalysisCardsFromJSON(parsed,raw||''); else renderFallbackCards(raw||'',budget);
   document.getElementById('modelUsed').textContent=model||'';
   document.getElementById('placeholder').classList.add('hidden');
@@ -1311,9 +1428,13 @@ Format wajib:
   "priorities": ["prioritas 1", "prioritas 2", "prioritas 3"],
   "warnings": ["warning 1", "warning 2", "warning 3"],
   "recommendations": [
-    {"title":"judul rekomendasi 1","detail":"isi singkat"},
-    {"title":"judul rekomendasi 2","detail":"isi singkat"},
-    {"title":"judul rekomendasi 3","detail":"isi singkat"}
+    {
+      "title":"judul rekomendasi",
+      "detail":"tindakan yang disarankan",
+      "evidence":"data yang menjadi dasar rekomendasi",
+      "source":"URL atau nama sumber jika tersedia",
+      "confidence":"tinggi/sedang/rendah"
+    }
   ],
   "conclusion": "kesimpulan akhir singkat"
 }
@@ -1323,14 +1444,27 @@ Aturan:
 - Prioritaskan kos, kebutuhan, makan, minum, bensin, dan dana aman.
 - Perhatikan field kos_source_label. Jika kos dibayar orang tua, jangan kurangi kemampuan uang pribadi seolah kos dibayar dari saldo sendiri.
 - Jika mode campuran, pembayaran awal berasal dari saldo sendiri sedangkan sisa kos ditanggung orang tua.
+- Perhatikan kos_funding_scope: jika current_cycle, pembagian pembayaran hanya berlaku pada periode kos yang tercantum dan jangan diasumsikan berlanjut bulan berikutnya. Jika ongoing, barulah boleh diasumsikan berulang tiap periode bulanan sampai diubah pengguna.
+- Fakta bahwa orang tua menanggung sebagian/seluruh kos HANYA mengurangi beban pengeluaran pengguna. Jangan pernah menulis seolah-olah "uang kos dari orang tua dimanfaatkan untuk investasi".
+- Bedakan tegas antara saldo sekarang, uang saku mingguan, pendapatan tambahan/app mingguan, dan sumber pembayaran kos. Keempatnya adalah kategori berbeda. Jangan menjumlahkannya seolah semuanya berasal dari sumber yang sama.
+- Gunakan kos_self_contribution dan kos_parent_contribution sebagai nominal pembayaran kos yang benar-benar berasal dari masing-masing pihak. Jika ada initial_kos_funding_gap, sebutkan kekurangan bayar awal tersebut sebelum membahas investasi.
+- Bedakan tegas antara uang yang SUDAH ADA sekarang dan pendapatan/uang saku yang BARU DIPROYEKSIKAN. Jangan menyebut proyeksi pendapatan masa depan sebagai dana investasi yang sudah tersedia.
+- safe_investment_amount adalah batas dana yang tersedia sekarang setelah kebutuhan, buffer, dan kewajiban kos pribadi. Jika nilainya 0, jangan memberi instruksi beli sekarang.
 - Jangan sarankan memakai uang yang memang dialokasikan untuk kos sebagai investasi.
 - Bedakan crypto snapshot dengan harga live.
+- Jangan menyimpulkan "hindari/beli crypto" hanya dari perubahan 24 jam. Gunakan perubahan 24 jam hanya sebagai konteks risiko jangka sangat pendek.
 - Data bank digital, reksadana, dan saham berasal dari pencarian internet yang dilakukan saat tombol analisis ditekan.
 - Jika data bank/reksadana/saham kurang kuat, fallback, atau tidak menemukan sumber resmi, sebutkan secara singkat di warnings.
 - Jangan mengarang bunga, return, harga, atau minimum setoran yang tidak muncul di hasil pencarian internet.
 - Filter/prioritaskan bank berdasarkan bank_interest_ranges yang dipilih pengguna. Pengguna boleh memilih lebih dari satu range sekaligus.
+- Rekomendasi bank/deposito WAJIB menyebut bunga/rate yang benar-benar ditemukan, tenor bila tersedia, minimum setoran bila tersedia, likuiditas/penalti bila tersedia, dan sumbernya.
+- Jika rate/tenor/minimum setoran belum terverifikasi dari sumber yang ditemukan, jangan menulis "pilih bank X"; tulis "perlu verifikasi lebih lanjut".
+- Bunga tinggi tidak otomatis paling cocok: pertimbangkan syarat, tenor, akses dana, dan kebutuhan likuiditas.
 - Jika stock_lot_mode = "auto", cari dan prioritaskan saham IDX yang biaya 1 lot (100 lembar) <= stock_lot_budget.
-- Untuk setiap rekomendasi saham, pertimbangkan harga per lembar, estimasi biaya 1 lot, perubahan harga terbaru, likuiditas, dan kecocokan dengan profil risiko.
+- Untuk setiap rekomendasi saham, pertimbangkan harga per lembar, estimasi biaya 1 lot, likuiditas, volatilitas/pergerakan terbaru, kualitas data, dividen terbaru bila tersedia, dividend yield perkiraan bila tersedia, dan kecocokan dengan profil risiko.
+- Dividen tidak boleh dianggap pasti berulang. Jika data dividen berasal dari pencarian web/fallback dan belum terverifikasi, tulis sebagai informasi historis/indikatif.
+- JANGAN merekomendasikan saham hanya karena naik pada hari itu. Perubahan 1 hari hanya indikator tambahan, bukan alasan utama beli.
+- Jika hanya tersedia snapshot/perubahan 1 hari tanpa tren historis atau fundamental, gunakan kata "kandidat untuk dipantau", bukan "beli".
 - Jangan rekomendasikan saham yang biaya 1 lot-nya melebihi stock_lot_budget jika mode otomatis aktif.
 - Jika data saham kandidat belum cukup terverifikasi, masukkan ke warnings dan jangan memaksakan rekomendasi.
 - Buat jawaban ringkas, jelas, realistis, dan tidak bertele-tele.
@@ -1363,12 +1497,12 @@ ${JSON.stringify(payload)}
     step('done', 100, 'Menampilkan hasil');
 
     document.getElementById('cashAfter').textContent = idr(budget.cash_after_initial_kos);
-    document.getElementById('heroSub').textContent = `${budget.initial_days} hari dibayar • sisa kos ${idr(budget.remaining_kos)} • dana aman ${idr(budget.buffer)}`;
+    document.getElementById('heroSub').textContent = `${budget.initial_days} hari target • bayar aktual ${idr(budget.initial_kos_payment)} • sendiri ${idr(budget.kos_self_contribution)} • orang tua ${idr(budget.kos_parent_contribution)} • sisa kos ${idr(budget.remaining_kos)}${budget.initial_kos_funding_gap>0 ? ' • kurang bayar awal '+idr(budget.initial_kos_funding_gap) : ''}`;
     document.getElementById('payKos').textContent = idr(budget.initial_kos_payment);
     document.getElementById('remainingKos').textContent = idr(budget.remaining_kos);
     document.getElementById('apps').textContent = `${idr(budget.app_income_weekly_min)}–${idr(budget.app_income_weekly_max)}`;
     document.getElementById('safe').textContent = idr(budget.safe_investment_amount);
-    document.getElementById('kosSourceView').textContent = budget.kos_source_label;
+    document.getElementById('kosSourceView').textContent = `${budget.kos_source_label} • ${budget.kos_funding_scope_label||''}`;
     document.getElementById('miniCash').textContent = idr(budget.cash_after_initial_kos);
     document.getElementById('miniCash2').textContent = idr(budget.cash_after_initial_kos);
     document.getElementById('miniSafe').textContent = idr(budget.buffer);
@@ -1396,16 +1530,18 @@ ${JSON.stringify(payload)}
         <small>Harga/lembar: ${x.price != null ? idr(x.price) : '-'}</small>
         <small>Estimasi 1 lot: ${x.lot_cost != null ? idr(x.lot_cost) : (x.price != null ? idr(x.price*100) : '-')}</small>
         <small>Perubahan: ${x.change_percent != null ? Number(x.change_percent).toFixed(2)+'%' : '-'}</small>
-        <small>${x.source || ''}</small>
+        <small>Dividen: ${x.dividend_per_share != null ? idr(x.dividend_per_share)+'/lembar' : (x.dividend_snippet ? escapeHtml(x.dividend_snippet.slice(0,120)) : 'Belum ditemukan')}</small>
+        <small>Dividend yield indikatif: ${x.dividend_yield_estimate != null ? Number(x.dividend_yield_estimate).toFixed(2)+'%' : '-'}</small>
+        <small>${x.dividend_source_url ? 'Sumber dividen: '+escapeHtml(x.dividend_source_url) : (x.source || '')}</small>
       </div>
     `).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Tidak ditemukan saham 1 lot yang sesuai batas dana saat ini.</small></div>';
 
     const refs = [ ...(stocks.items||[]), ...(banks.items||[]), ...(funds.items||[]) ];
     document.getElementById('research').innerHTML = refs.map(x=>`
       <div class="source">
-        <b>${x.symbol || x.category || 'Sumber'}${x.title ? ' • ' + x.title : ''}</b>
-        <small>${x.snippet || (x.price != null ? idr(x.price) : '')}</small>
-        <small>${x.source || x.url || ''}</small>
+        <b>${x.symbol || x.category || 'Sumber'}${x.title ? ' • ' + compactSnippet(x.title,70) : ''}</b>
+        <small>${compactSnippet(x.snippet || (x.price != null ? idr(x.price) : ''),190)}</small>
+        <small>${sourceHost(x.url || x.source || '')}</small>
       </div>
     `).join('');
 
@@ -1447,7 +1583,7 @@ document.getElementById('buffer').addEventListener('input', e=>{
   document.getElementById('miniSafe').textContent = idr(+e.target.value||0);
   document.getElementById('miniSafe2').textContent = idr(+e.target.value||0);
 });
-['cash','allowance','kos','weeks','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','notes','kosSource','model'].forEach(id=>{
+['cash','allowance','incomeMin','incomeMax','kos','weeks','kosSelfContribution','kosParentContribution','kosCycleStart','kosFundingScope','buffer','needs','risk','stocks','stockLotMode','stockLotBudget','stockRecommendationCount','banks','notes','kosSource','model'].forEach(id=>{
   const el=document.getElementById(id); if(el){el.addEventListener('input',scheduleSave);el.addEventListener('change',scheduleSave)}
 });
 
@@ -1456,6 +1592,8 @@ document.getElementById('buffer').addEventListener('input', e=>{
   cb.addEventListener('change', scheduleSave);
 });
 
+document.getElementById('kosSource').addEventListener('change', ()=>{ syncKosFundingUI(); scheduleSave(); });
+syncKosFundingUI();
 startCrypto();
   await restoreState();
   await restoreLastAnalysis();
