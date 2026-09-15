@@ -189,3 +189,15 @@ Perubahan logika:
 - Dana simulasi bank otomatis memakai nilai konservatif `uang saku - kebutuhan`.
 - Pendapatan aplikasi tidak otomatis dimasukkan ke dana simulasi agar proyeksi tidak terlalu optimistis.
 - Saldo pribadi, dana orang tua, dan dana periode berikutnya tetap dipisahkan.
+
+
+## Update v10.18 — Dana simulasi mengikuti saldo pribadi aktual
+
+Tidak ada migration database baru.
+
+Perubahan logika:
+- `Saldo pribadi sekarang` tetap diisi sesuai total aktual e-wallet + rekening yang benar-benar tersedia.
+- `Proyeksi sisa uang saku / minggu` = uang saku - kebutuhan. Nilai ini hanya proyeksi dan tidak dipakai sebagai modal simulasi bank.
+- `Surplus Aman Investasi` dihitung dari saldo pribadi aktual setelah pembayaran kos pribadi dan kebutuhan berjalan.
+- `Dana simulasi bank` otomatis mengikuti `Surplus Aman Investasi`.
+- Jika saldo pribadi kamu berubah setelah cek e-wallet/rekening, update angka `Saldo pribadi sekarang`; seluruh perhitungan ikut berubah otomatis.
