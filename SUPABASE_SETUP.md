@@ -283,3 +283,31 @@ Perubahan:
 - restore hasil analisis terakhir juga membuka kembali section Crypto & Saham;
 - ditambah label terpisah `Crypto` dan `Saham IDX` agar hasil tidak terlihat seperti satu blok kosong;
 - jika snapshot crypto benar-benar tidak tersedia, UI menampilkan alasan yang jelas, bukan section kosong.
+
+
+## Update v10.32 — Bank Saqu: Saku Booster + Busposito + Deposito Reguler
+
+Tidak ada migration Supabase baru.
+
+Perubahan:
+- Bank Saqu sekarang memakai tiga produk utama secara terpisah:
+  1. Saku Booster — bunga 10% p.a., tetapi bukan deposito/setoran bebas;
+  2. Busposito — minimum penempatan Rp100.000, bunga dinamis sesuai jumlah peserta/penawaran aktif;
+  3. Deposito Reguler — minimum Rp1.000.000, bunga mengikuti tier tenor dan nominal resmi.
+- Busposito tetap tampil di card walau halaman produk tidak memberi satu angka bunga tetap.
+- Busposito tidak ikut simulasi compounding sampai ada angka bunga aktif yang benar-benar terverifikasi.
+- Saku Booster tetap tidak diperlakukan sebagai deposito biasa pada simulasi.
+
+
+## Update v10.33 — Koreksi Saku Booster + Tabungmatic
+
+Tidak ada migration Supabase baru.
+
+Perubahan:
+- Saku Booster tetap 10% p.a.
+- Deskripsi diperbaiki: Saku Booster bukan hanya penampung reward/cashback.
+- Tabungmatic ditambahkan sebagai mekanisme menabung otomatis: selisih pembulatan transaksi tertentu masuk ke Saku Booster.
+- Top up manual langsung tetap dibedakan dari Tabungmatic.
+- Minimum setoran Saku Booster ditampilkan sebagai `Tidak ada minimum setoran khusus`, bukan seolah-olah deposito dengan minimum Rp0.
+- Card Detail Bank Saqu menampilkan mekanisme dana masuk `Tabungmatic + reward/cashback`.
+- Prompt AI dilarang menyebut Saku Booster hanya sebagai kantong cashback.

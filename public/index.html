@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.31</title>
+<title>KosFlow Finance v10.33</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -2451,7 +2451,8 @@ Aturan:
 - Jangan pernah membahas "raw dump", SERP, spam, malware, privasi, atau meminta klarifikasi. Tugasmu sudah jelas: analisis keuangan pribadi KosFlow.
 - Rekomendasi hanya boleh mengacu pada sumber Indonesia yang ada di payload.
 - bank_placements hanya boleh memakai produk bank Indonesia yang benar-benar ada pada payload banks dan rate_verified=true;
-- Jangan menganggap promo yang periode programnya sudah berakhir sebagai bunga produk saat ini. Bedakan bunga reguler, bonus promosi, dan bunga produk khusus. jangan pernah membuat bank luar negeri seperti Bank of America, Chase, Ally, atau bank yang tidak ada di input.
+- Jangan menganggap promo yang periode programnya sudah berakhir sebagai bunga produk saat ini.
+- Saku Booster Bank Saqu bukan sekadar cashback: dana juga dapat masuk lewat Tabungmatic (selisih pembulatan transaksi). Jangan menyebutnya hanya sebagai kantong reward. Bedakan bunga reguler, bonus promosi, dan bunga produk khusus. jangan pernah membuat bank luar negeri seperti Bank of America, Chase, Ally, atau bank yang tidak ada di input.
 - Gunakan Bahasa Indonesia.
 - Prioritaskan kos, kebutuhan, makan, minum, bensin, dan dana aman.
 - Perhatikan field kos_source_label. Jika kos dibayar orang tua, jangan kurangi kemampuan uang pribadi seolah kos dibayar dari saldo sendiri.
@@ -2596,24 +2597,30 @@ ${JSON.stringify(payload)}
 
     renderFundDiscovery(funds);
     const bankItems=(banks.items||[])
-      .filter(x=>Array.isArray(x.rate_facts)&&x.rate_facts.length)
+      .filter(x=>(Array.isArray(x.rate_facts)&&x.rate_facts.length) || x.dynamic_rate)
       .slice(0,12);
 
     document.getElementById('research').innerHTML=bankItems.map(x=>{
       const title=x.product_name||x.title||'Produk bank';
       const facts=(x.important_facts||[]).filter(Boolean).slice(0,6);
       const rates=(x.rate_facts||[]).slice(0,3);
-      const previewFact=facts[0]||'';
+      const rateLabel=rates.length ? rates.map(f=>f.rate).join(' • ') : (x.rate_text||'Bunga dinamis');
+      const previewFact =
+        x.product_name==='Saku Booster'
+          ? 'Tabungmatic menabungkan selisih pembulatan transaksi ke Saku Booster.'
+          : (facts[0]||'');
       const detail=`
         <div class="detail-kv">
           <b>Produk</b><span>${escapeHtml(title)}</span>
-          <b>Bunga</b><span>${escapeHtml(rates.map(f=>f.rate).join(' • '))}</span>
+          <b>Bunga</b><span>${escapeHtml(rateLabel)}</span>
           <b>Sumber resmi</b><span>${escapeHtml(x.url||'-')}</span>
+          ${x.minimum_deposit_label?`<b>Minimum setoran</b><span>${escapeHtml(x.minimum_deposit_label)}</span>`:''}
+          ${x.funding_mechanism?`<b>Mekanisme dana masuk</b><span>${escapeHtml(x.funding_mechanism)}</span>`:''}
         </div>
         ${facts.length?'<ul>'+facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')+'</ul>':''}`;
       return `<div class="source">
         <b>${escapeHtml(compactSnippet(title,58))}</b>
-        <small><strong>${escapeHtml(rates.map(f=>f.rate).join(' • '))}</strong></small>
+        <small><strong>${escapeHtml(rateLabel)}</strong></small>
         ${previewFact?`<small>${escapeHtml(previewFact)}</small>`:''}
         <div class="card-actions">${detailButton(title,detail)}</div>
       </div>`;

@@ -507,6 +507,9 @@ BANK_OFFICIAL_PAGES = {
     "Bank Saqu": [
         "https://banksaqu.co.id/blog/informasi-bunga-saku-nabung",
         "https://banksaqu.co.id/products/saku-booster-11",
+        "https://banksaqu.co.id/products/tabungmatic-19",
+        "https://banksaqu.co.id/support/219/apakah-saya-bisa-menambah-dana-ke-saku-booster",
+        "https://banksaqu.co.id/products/busposito-16",
         "https://banksaqu.co.id/products/saku-booster-11",
         "https://banksaqu.co.id/support/270/what-is-the-interest-rate-on-saku-booster",
         "https://banksaqu.co.id/legal/riplay",
@@ -541,13 +544,36 @@ BANK_KNOWN_PRODUCTS = {
                 {"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Bunga Saku Booster"}
             ],
             "important_facts": [
-                "Saku Booster memberi bunga 10% per tahun pada saldo reward/cashback yang masuk ke Saku Booster.",
-                "Saku Booster bukan Deposito Reguler; saldo utamanya berasal dari reward/cashback Bank Saqu dan dapat ditambah melalui fitur yang tersedia di aplikasi.",
-                "Dana dapat dipindahkan ke saku lain sesuai ketentuan penarikan Saku Booster.",
-                "Untuk angka bunga terbaru, Bank Saqu mengarahkan nasabah ke halaman Rates."
+                "Saku Booster memberi bunga 10% per tahun.",
+                "Saku Booster dapat menjadi tempat menabung otomatis melalui Tabungmatic: selisih pembulatan dari transaksi tertentu masuk otomatis ke Saku Booster.",
+                "Saku Booster juga dapat menerima reward/cashback dari program Bank Saqu.",
+                "Dana tidak ditambahkan lewat top up manual langsung seperti tabungan biasa; mekanisme masuk dana mengikuti fitur/program Bank Saqu seperti Tabungmatic dan reward/cashback.",
+                "Tidak ada minimum setoran khusus seperti deposito; minimum setoran tidak berlaku.",
+                "Dana dapat dipindahkan dari Saku Booster ke saku lain sesuai ketentuan yang berlaku."
             ],
             "minimum_deposit": 0,
+            "minimum_deposit_label": "Tidak ada minimum setoran khusus",
+            "funding_mechanism": "Tabungmatic + reward/cashback",
+            "manual_topup": False,
             "simulation_eligible": False,
+            "official_hint": True,
+            "source_type": "official-known-product",
+        },
+        {
+            "product_name": "Busposito",
+            "url": "https://banksaqu.co.id/products/busposito-16",
+            "rate_facts": [],
+            "rate_text": "Bunga dinamis sesuai jumlah peserta",
+            "important_facts": [
+                "Busposito adalah produk deposito Bank Saqu dengan bunga yang ditentukan oleh jumlah peserta dalam Busposito yang sama.",
+                "Minimum penempatan dana Busposito adalah Rp100.000.",
+                "Busposito hanya dapat diikuti ketika penawaran tersedia di aplikasi Bank Saqu dan masa tunggu belum berakhir atau kuota peserta belum penuh.",
+                "Semakin banyak peserta, bunga dapat menjadi lebih tinggi; angka bunga aktif mengikuti penawaran Busposito yang sedang tersedia di aplikasi.",
+                "Dana dapat ditarik sebelum jatuh tempo sesuai ketentuan dan biaya penarikan yang tercantum pada aplikasi."
+            ],
+            "minimum_deposit": 100000,
+            "simulation_eligible": False,
+            "dynamic_rate": True,
             "official_hint": True,
             "source_type": "official-known-product",
         },
@@ -945,7 +971,9 @@ async def _bank_search_one(name, selected_ranges):
             f for f in (item.get("rate_facts") or [])
             if _rate_matches_selected_ranges(f.get("rate_percent"), selected_ranges)
         ]
-        if not facts:
+        # Produk dengan bunga dinamis (contoh Busposito) tetap tampil sebagai fakta produk,
+        # tetapi tidak ikut simulasi sampai ada angka bunga aktif yang terverifikasi.
+        if not facts and not item.get("dynamic_rate"):
             continue
         item["rate_facts"] = facts
         key = (item.get("product_name") or item.get("title") or "").strip().lower()
