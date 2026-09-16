@@ -254,3 +254,32 @@ Perubahan:
 - output Ollama yang masih berbahasa Inggris otomatis dipaksa melalui repair pass Bahasa Indonesia;
 - prompt mengabaikan instruksi/noise dari snippet internet dan melarang analisis SERP/raw dump/spam/privacy;
 - Generate Catatan AI tetap memakai parser v10.28.
+
+
+## Update v10.30 — Current Bank Rates + Clean Fund Details
+
+Tidak ada migration Supabase baru.
+
+Perubahan penting:
+- Bank Saqu: `Saku Booster 10%` dipisahkan dari `Deposito Reguler`; promo deposito "hingga 10%" yang sudah berakhir tidak lagi dianggap bunga deposito saat ini.
+- Deposito Reguler Bank Saqu memakai tier bunga resmi terbaru yang tersedia pada halaman penyesuaian, bukan 10%.
+- Krom Bank memakai data produk terstruktur resmi: Kantong Basic 6%, Kantong Boost 6,25%, Krom Flex hingga 7,5%, Krom Max hingga 8%.
+- Generic parser Krom/Saqu/Superbank tidak boleh lagi mengambil angka acak dari tabel perbandingan lalu menyebutnya sebagai rate produk.
+- Simulasi bank menghormati minimum penempatan. Dana Rp30.000 tidak akan disimulasikan ke Deposito Reguler Bank Saqu (min Rp1 juta) atau deposito Krom (min Rp100 ribu).
+- Saku Booster tidak dipakai sebagai penempatan dana simulasi umum karena saldo produk terkait reward/cashback.
+- Reksadana detail tidak lagi menampilkan dump navigasi halaman atau teks seperti YO! Inves/Help Center.
+- Detail reksadana hanya menampilkan fakta produk terstruktur dan kalimat utuh; tidak dipotong di tengah kata/kalimat.
+
+
+## Update v10.31 — Fix Simulasi Crypto & Saham Tidak Muncul
+
+Tidak ada migration database baru.
+
+Perubahan:
+- memperbaiki bug jalur analisis utama yang lupa memanggil `renderMarketSimulation(...)`;
+- card simulasi BTC/ETH/SOL sekarang muncul kembali setelah analisis selesai;
+- parser simulasi crypto toleran terhadap response `items` langsung maupun `crypto.items`;
+- section simulasi otomatis dibuka setelah render;
+- restore hasil analisis terakhir juga membuka kembali section Crypto & Saham;
+- ditambah label terpisah `Crypto` dan `Saham IDX` agar hasil tidak terlihat seperti satu blok kosong;
+- jika snapshot crypto benar-benar tidak tersedia, UI menampilkan alasan yang jelas, bukan section kosong.

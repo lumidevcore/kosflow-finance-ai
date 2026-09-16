@@ -420,19 +420,71 @@ FUND_SEED_PRODUCTS = [
 ]
 
 
+def _sentence_complete_excerpt(text, keywords=(), max_sentences=5):
+    if not text:
+        return []
+    clean=re.sub(r"\s+"," ",text).strip()
+    # Remove common navigation noise before sentence extraction.
+    noise=[
+        "Why Syailendra","Company Philosophy","Manajemen & Struktur Organisasi",
+        "Management & Organization Structure","Goals Planner","Download Center",
+        "Help Center","Contact Us","Customer Complaints","YO! Inves","Yo! Inves",
+        "Beranda","Tentang Kami","Kebijakan Privasi","Info Karir","Pengumuman Lelang",
+    ]
+    for n in noise:
+        clean=clean.replace(n," ")
+    clean=re.sub(r"\s+"," ",clean).strip()
+    sentences=re.split(r"(?<=[.!?])\s+",clean)
+    out=[]
+    for s in sentences:
+        ss=s.strip()
+        if len(ss)<15 or len(ss)>320:
+            continue
+        low=ss.lower()
+        if keywords and not any(k.lower() in low for k in keywords):
+            continue
+        out.append(ss)
+        if len(out)>=max_sentences:
+            break
+    return out
+
+def _extract_fund_detail_facts(text):
+    facts=[]
+    clean=re.sub(r"\s+"," ",text or "").strip()
+    patterns=[
+        (r"(?:NAB Per Unit|NAB/unit)\s*[:\-]?\s*(?:Rp\.?\s*)?([0-9.,]+)", "NAB per unit"),
+        (r"(?:1 Tahun|1Y)\s*[:\-]?\s*([+\-]?[0-9.,]+%)", "Return 1 tahun"),
+        (r"(?:1 Bulan|1M)\s*[:\-]?\s*([+\-]?[0-9.,]+%)", "Return 1 bulan"),
+        (r"Minimum Pembelian\s*[:\-]?\s*(Rp\.?\s*[0-9.,]+)", "Minimum pembelian"),
+        (r"(?:Tingkat Risiko|Risk Level)\s*[:\-]?\s*([A-Za-z ]{3,30})", "Tingkat risiko"),
+    ]
+    for pat,label in patterns:
+        m=re.search(pat,clean,re.I)
+        if m:
+            facts.append(f"{label}: {m.group(1).strip()}.")
+    if not facts:
+        facts.extend(_sentence_complete_excerpt(
+            clean,
+            keywords=("minimum pembelian","nab","1 tahun","return","imbal hasil","risiko","periode investasi"),
+            max_sentences=5
+        ))
+    return facts[:6]
+
+
 async def _fetch_seed_fund(seed):
     item = dict(seed)
     try:
         body = await get_text(seed["url"], 8)
         text = _clean_html_text(body)
-        # Keep only a compact source excerpt; card UI will hide long text behind Detail.
-        item["snippet"] = re.sub(r"\s+", " ", text)[:1200]
+        item["snippet"] = ""
         item["return_facts"] = _extract_fund_return_facts(text, 5)
+        item["detail_facts"] = _extract_fund_detail_facts(text)
         item["official_hint"] = True
         item["category"] = "Reksadana • " + FUND_CATEGORY_MAP.get(seed["fund_category"], "Reksadana").title()
     except Exception:
-        item["snippet"] = "Produk resmi dari Manajer Investasi; data performa belum berhasil dimuat."
+        item["snippet"] = ""
         item["return_facts"] = []
+        item["detail_facts"] = ["Data detail produk belum berhasil dimuat; gunakan tautan sumber resmi untuk verifikasi."]
         item["official_hint"] = True
         item["category"] = "Reksadana • " + FUND_CATEGORY_MAP.get(seed["fund_category"], "Reksadana").title()
     return item
@@ -455,7 +507,6 @@ BANK_OFFICIAL_PAGES = {
     "Bank Saqu": [
         "https://banksaqu.co.id/blog/informasi-bunga-saku-nabung",
         "https://banksaqu.co.id/products/saku-booster-11",
-        "https://banksaqu.co.id/blog/deposito-saku-gajian",
         "https://banksaqu.co.id/products/saku-booster-11",
         "https://banksaqu.co.id/support/270/what-is-the-interest-rate-on-saku-booster",
         "https://banksaqu.co.id/legal/riplay",
@@ -486,13 +537,111 @@ BANK_KNOWN_PRODUCTS = {
         {
             "product_name": "Saku Booster",
             "url": "https://banksaqu.co.id/products/saku-booster-11",
-            "rate_facts": [{"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Bunga Saku Booster"}],
-            "important_facts": [
-                "Bunga 10% per tahun pada Saku Booster.",
-                "Saku Booster berfungsi untuk mengumpulkan reward/cashback dari program Bank Saqu.",
-                "Dana reward dapat dipindahkan ke saku lain setelah memenuhi ketentuan penarikan yang berlaku.",
-                "Suku bunga dapat berubah sesuai kebijakan Bank Saqu; cek halaman Rates untuk angka terbaru."
+            "rate_facts": [
+                {"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Bunga Saku Booster"}
             ],
+            "important_facts": [
+                "Saku Booster memberi bunga 10% per tahun pada saldo reward/cashback yang masuk ke Saku Booster.",
+                "Saku Booster bukan Deposito Reguler; saldo utamanya berasal dari reward/cashback Bank Saqu dan dapat ditambah melalui fitur yang tersedia di aplikasi.",
+                "Dana dapat dipindahkan ke saku lain sesuai ketentuan penarikan Saku Booster.",
+                "Untuk angka bunga terbaru, Bank Saqu mengarahkan nasabah ke halaman Rates."
+            ],
+            "minimum_deposit": 0,
+            "simulation_eligible": False,
+            "official_hint": True,
+            "source_type": "official-known-product",
+        },
+        {
+            "product_name": "Deposito Reguler",
+            "url": "https://banksaqu.co.id/blog/update-suku-bunga-deposito-reguler-mulai-1-november-2025",
+            "rate_facts": [
+                {"rate":"4% p.a.","rate_percent":4.0,"short_context":"1–2 bulan, saldo < Rp500 juta","tenor":"1–2 bulan"},
+                {"rate":"4,5% p.a.","rate_percent":4.5,"short_context":"3–5 bulan, saldo < Rp500 juta","tenor":"3–5 bulan"},
+                {"rate":"5% p.a.","rate_percent":5.0,"short_context":"6–12 bulan, saldo < Rp500 juta","tenor":"6–12 bulan"},
+                {"rate":"6% p.a.","rate_percent":6.0,"short_context":"6–12 bulan, saldo ≥ Rp500 juta","tenor":"6–12 bulan"},
+                {"rate":"6,5% p.a.","rate_percent":6.5,"short_context":"6–12 bulan, saldo ≥ Rp2 miliar","tenor":"6–12 bulan"}
+            ],
+            "important_facts": [
+                "Deposito Reguler Bank Saqu mulai dari Rp1.000.000.",
+                "Untuk saldo di bawah Rp500 juta, bunga yang diumumkan Bank Saqu adalah 4,00% untuk tenor 1–2 bulan, 4,50% untuk 3–5 bulan, dan 5,00% untuk 6–12 bulan.",
+                "Bunga dapat mencapai 6,50% per tahun pada tier saldo dan tenor tertentu.",
+                "Promo lama yang pernah menyebut keuntungan hingga 10% bukan suku bunga Deposito Reguler saat ini; promo tersebut menggabungkan bunga deposito dan bonus dana serta memiliki periode program terbatas."
+            ],
+            "minimum_deposit": 1000000,
+            "simulation_eligible": True,
+            "official_hint": True,
+            "source_type": "official-known-product",
+        }
+    ],
+    "Krom Bank": [
+        {
+            "product_name": "Kantong Basic",
+            "url": "https://krom.id/",
+            "rate_facts": [
+                {"rate":"6% p.a.","rate_percent":6.0,"short_context":"Kantong Tabungan Mode Basic"}
+            ],
+            "important_facts": [
+                "Kantong Tabungan Mode Basic memberi bunga 6% per tahun.",
+                "Saldo Kantong dapat mulai diisi dari Rp1."
+            ],
+            "minimum_deposit": 1,
+            "simulation_eligible": True,
+            "official_hint": True,
+            "source_type": "official-known-product",
+        },
+        {
+            "product_name": "Kantong Boost",
+            "url": "https://krom.id/",
+            "rate_facts": [
+                {"rate":"6,25% p.a.","rate_percent":6.25,"short_context":"Kantong Tabungan Mode Boost, minimum periode simpanan 7 hari"}
+            ],
+            "important_facts": [
+                "Kantong Tabungan Mode Boost memberi bunga 6,25% per tahun.",
+                "Mode Boost memiliki periode simpanan minimum 7 hari.",
+                "Saldo Kantong dapat mulai diisi dari Rp1."
+            ],
+            "minimum_deposit": 1,
+            "simulation_eligible": True,
+            "official_hint": True,
+            "source_type": "official-known-product",
+        },
+        {
+            "product_name": "Krom Flex",
+            "url": "https://krom.id/pengumuman-penyesuaian-suku-bunga-deposito-krom-flex-dan-krom-max/",
+            "rate_facts": [
+                {"rate":"6,5% p.a.","rate_percent":6.5,"short_context":"Tenor 14 hari","tenor":"14 hari"},
+                {"rate":"6,75% p.a.","rate_percent":6.75,"short_context":"Tenor 1 bulan","tenor":"1 bulan"},
+                {"rate":"7% p.a.","rate_percent":7.0,"short_context":"Tenor 3 bulan","tenor":"3 bulan"},
+                {"rate":"7% p.a.","rate_percent":7.0,"short_context":"Tenor 6 bulan","tenor":"6 bulan"},
+                {"rate":"7,5% p.a.","rate_percent":7.5,"short_context":"Tenor 12 bulan","tenor":"12 bulan"}
+            ],
+            "important_facts": [
+                "Krom Flex memberi bunga hingga 7,50% per tahun berdasarkan tenor.",
+                "Krom Flex dapat dicairkan sebelum jatuh tempo tanpa penalti; bunga mengikuti ketentuan produk.",
+                "Saldo awal minimum deposito Krom adalah Rp100.000."
+            ],
+            "minimum_deposit": 100000,
+            "simulation_eligible": True,
+            "official_hint": True,
+            "source_type": "official-known-product",
+        },
+        {
+            "product_name": "Krom Max",
+            "url": "https://krom.id/pengumuman-penyesuaian-suku-bunga-deposito-krom-flex-dan-krom-max/",
+            "rate_facts": [
+                {"rate":"6,5% p.a.","rate_percent":6.5,"short_context":"Tenor 14 hari","tenor":"14 hari"},
+                {"rate":"7,5% p.a.","rate_percent":7.5,"short_context":"Tenor 1 bulan","tenor":"1 bulan"},
+                {"rate":"7,5% p.a.","rate_percent":7.5,"short_context":"Tenor 3 bulan","tenor":"3 bulan"},
+                {"rate":"7,5% p.a.","rate_percent":7.5,"short_context":"Tenor 6 bulan","tenor":"6 bulan"},
+                {"rate":"8% p.a.","rate_percent":8.0,"short_context":"Tenor 12 bulan","tenor":"12 bulan"}
+            ],
+            "important_facts": [
+                "Krom Max memberi bunga hingga 8,00% per tahun; tenor 12 bulan menggunakan bunga 8,00% per tahun menurut pengumuman yang berlaku mulai 1 Mei 2026.",
+                "Krom Max dapat dicairkan lebih awal tanpa penalti, tetapi bunga periode berjalan tidak dibayarkan sesuai ketentuan produk.",
+                "Saldo awal minimum deposito Krom adalah Rp100.000."
+            ],
+            "minimum_deposit": 100000,
+            "simulation_eligible": True,
             "official_hint": True,
             "source_type": "official-known-product",
         }
@@ -501,19 +650,22 @@ BANK_KNOWN_PRODUCTS = {
         {
             "product_name": "Celengan by Superbank",
             "url": "https://www.superbank.id/content/files/Product/Celengan%20-%20RIPLAY.pdf",
-            "rate_facts": [{"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Suku bunga Celengan"}],
-            "important_facts": [
-                "Suku bunga 10% per tahun.",
-                "Saldo minimal Rp0 dan setoran awal Rp0.",
-                "Tidak ada biaya administrasi bulanan.",
-                "Produk dirancang untuk menabung otomatis; saldo dapat dicairkan sesuai ketentuan produk.",
-                "Bunga simpanan dapat terkena pajak dan penjaminan LPS mengikuti ketentuan yang berlaku."
+            "rate_facts": [
+                {"rate": "10% p.a.", "rate_percent": 10.0, "short_context": "Suku bunga Celengan"}
             ],
+            "important_facts": [
+                "Celengan by Superbank menawarkan bunga 10% per tahun.",
+                "Saldo minimal dan setoran awal dapat Rp0 sesuai ringkasan produk.",
+                "Tidak ada biaya administrasi bulanan."
+            ],
+            "minimum_deposit": 0,
+            "simulation_eligible": True,
             "official_hint": True,
             "source_type": "official-known-product",
         }
     ],
 }
+
 
 
 def _important_bank_facts(text, max_facts=5):
@@ -746,32 +898,46 @@ async def _bank_search_one(name, selected_ranges):
     domains = BANK_DOMAINS.get(name, [])
     bank_items = []
     seen = set()
+
     try:
         official = await asyncio.wait_for(fetch_official_bank_pages(name), timeout=8)
     except Exception:
         official = []
+
+    structured_bank = name in BANK_KNOWN_PRODUCTS and bool(BANK_KNOWN_PRODUCTS.get(name))
     for item in official:
+        # For banks with curated current products, ignore generic page parsing so a stray
+        # percentage from comparison tables can never become the product rate.
+        if structured_bank and item.get("source_type") != "official-known-product":
+            continue
         key = item.get("url") or item.get("title")
-        if key in seen: continue
-        seen.add(key); bank_items.append(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        bank_items.append(item)
+
     has_rate = any(item.get("rate_facts") for item in bank_items)
     if not has_rate:
         range_hint = " ".join(selected_ranges[:2])
         q = f'"{name}" bunga tabungan deposito terbaru {range_hint}'.strip()
         try:
-            items = await asyncio.wait_for(multi_search(q, "Bank digital • " + name, domains=domains, max_results=3), timeout=8)
+            items = await asyncio.wait_for(
+                multi_search(q, "Bank digital • " + name, domains=domains, max_results=3),
+                timeout=8
+            )
         except Exception:
             items = []
         for item in items:
             key = item.get("url") or item.get("title")
-            if key in seen: continue
+            if key in seen:
+                continue
             seen.add(key)
             item.setdefault("source_type", "web-search")
             item["product_name"] = _guess_bank_product_name(item.get("title"), item.get("snippet"), name)
             item["important_facts"] = _important_bank_facts(item.get("snippet") or "")
             _attach_rate_facts(item)
             bank_items.append(item)
-    # Bersihkan rate yang tidak masuk range pilihan dan buang hasil tanpa angka bunga.
+
     cleaned = []
     seen_products = set()
     for item in bank_items:
@@ -781,11 +947,8 @@ async def _bank_search_one(name, selected_ranges):
         ]
         if not facts:
             continue
-        item["rate_facts"] = facts[:4]
-        key = (
-            (item.get("product_name") or item.get("title") or "").strip().lower(),
-            item.get("url") or "",
-        )
+        item["rate_facts"] = facts
+        key = (item.get("product_name") or item.get("title") or "").strip().lower()
         if key in seen_products:
             continue
         seen_products.add(key)
@@ -794,9 +957,8 @@ async def _bank_search_one(name, selected_ranges):
     cleaned.sort(key=lambda x:(
         0 if x.get("source_type")=="official-known-product" else 1,
         0 if x.get("official_hint") else 1,
-        0 if x.get("source_type")=="official-direct" else 1
     ))
-    return cleaned[:4]
+    return cleaned[:8]
 
 async def bank_search(names_text, rate_ranges_text=''):
     names=[x.strip() for x in names_text.split(',') if x.strip()][:10]
@@ -894,6 +1056,7 @@ def _enrich_fund_item(item, category_key):
     item["manager"] = _infer_fund_manager(text)
     item["product_name"] = (item.get("title") or "").split(" | ")[0].strip()[:180]
     item["return_facts"] = _extract_fund_return_facts(text)
+    item["detail_facts"] = _extract_fund_detail_facts((item.get("title") or "")+" "+(item.get("snippet") or ""))
     return item
 
 
