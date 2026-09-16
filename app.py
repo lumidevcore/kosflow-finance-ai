@@ -1,6 +1,6 @@
 from pathlib import Path
 from datetime import datetime
-from urllib.parse import parse_qs, quote
+from urllib.parse import urlsplit, parse_qs, quote
 import asyncio
 import html
 import json
@@ -216,6 +216,84 @@ async def stock_quotes(symbols_text):
     }
 
 
+INDONESIA_INVESTMENT_DOMAINS = (
+    "idx.co.id",
+    "ajaib.co.id",
+    "makmur.id",
+    "bareksa.com",
+    "bibit.id",
+    "bni-am.co.id",
+    "syailendracapital.com",
+    "mandiri-investasi.co.id",
+    "bri-mi.co.id",
+    "manulifeim.co.id",
+    "sucorinvest.com",
+    "batavia-am.co.id",
+    "eastspring.co.id",
+    "principal.co.id",
+    "bahana.co.id",
+    "trimegah-am.com",
+    "panin-am.co.id",
+    "ciptadana.com",
+)
+
+FUND_RELEVANCE_TERMS = (
+    "reksa dana", "reksadana", "pasar uang", "pendapatan tetap",
+    "obligasi", "campuran", "saham", "nab", "aum", "fund",
+    "manajer investasi", "expense ratio", "minimum pembelian",
+)
+
+def _host_from_url(url):
+    try:
+        return re.sub(r"^www\.", "", urlsplit(url).netloc.lower())
+    except Exception:
+        return ""
+
+def _allowed_indonesia_investment_url(url):
+    host = _host_from_url(url)
+    return any(host == d or host.endswith("." + d) for d in INDONESIA_INVESTMENT_DOMAINS)
+
+def _fund_result_relevant(item):
+    if not _allowed_indonesia_investment_url(item.get("url") or ""):
+        return False
+    text = " ".join([
+        str(item.get("title") or ""),
+        str(item.get("snippet") or ""),
+        str(item.get("url") or ""),
+    ]).lower()
+    return any(term in text for term in FUND_RELEVANCE_TERMS)
+
+async def google_web_search(query, category, max_results=5):
+    """Google Search HTML, bahasa Indonesia. Hasil kemudian difilter domain investasi Indonesia."""
+    url = "https://www.google.com/search?hl=id&gl=id&num=10&q=" + quote(query)
+    try:
+        body = await get_text(url, 10)
+    except Exception:
+        return []
+
+    out, seen = [], set()
+    # Google HTML layout changes often; handle the common /url?q= links and direct links.
+    for href, title_html in re.findall(
+        r'(?is)<a[^>]+href="(?:/url\?q=)?(https?://[^"&]+)[^"]*"[^>]*>(.*?)</a>',
+        body,
+    ):
+        href = html.unescape(href)
+        if href in seen or not _allowed_indonesia_investment_url(href):
+            continue
+        title = re.sub(r"<[^>]+>", " ", html.unescape(title_html))
+        title = re.sub(r"\s+", " ", title).strip()
+        if not title:
+            continue
+        item = {"category": category, "title": title[:220], "snippet": "", "url": href}
+        if not _fund_result_relevant(item):
+            continue
+        seen.add(href)
+        out.append(item)
+        if len(out) >= max_results:
+            break
+    return out
+
+
 async def ddg_search(query, category, max_results=2):
     url = "https://html.duckduckgo.com/html/?q=" + quote(query)
 
@@ -275,8 +353,12 @@ async def bing_search(query, category, max_results=4):
 
 
 async def search_any(query, category, max_results=5):
-    """Query DDG and Bing in parallel, dedupe, return whichever succeeds."""
+    """
+    Google Indonesia menjadi sumber discovery utama.
+    DDG/Bing hanya fallback dan semua hasil WAJIB lolos allowlist sumber investasi Indonesia.
+    """
     chunks = await asyncio.gather(
+        google_web_search(query, category, max_results),
         ddg_search(query, category, max_results),
         bing_search(query, category, max_results),
         return_exceptions=True,
@@ -286,6 +368,8 @@ async def search_any(query, category, max_results=5):
         if not isinstance(chunk, list):
             continue
         for item in chunk:
+            if not _fund_result_relevant(item):
+                continue
             key = item.get("url") or item.get("title")
             if not key or key in seen:
                 continue
@@ -819,28 +903,41 @@ async def fund_search(categories_text=""):
     if not selected:
         selected = list(FUND_CATEGORY_MAP.keys())
 
+    trusted_sites = [
+        "makmur.id",
+        "ajaib.co.id",
+        "bareksa.com",
+        "bibit.id",
+        "bni-am.co.id",
+        "syailendracapital.com",
+        "mandiri-investasi.co.id",
+    ]
+
     async def search_query(category_key, query, max_results=5):
         try:
             items = await asyncio.wait_for(
                 search_any(query, "Reksadana • " + FUND_CATEGORY_MAP[category_key].title(), max_results),
-                timeout=9,
+                timeout=10,
             )
         except Exception:
             return []
-        return [_enrich_fund_item(item, category_key) for item in items]
+        cleaned=[]
+        for item in items:
+            if not _fund_result_relevant(item):
+                continue
+            cleaned.append(_enrich_fund_item(item, category_key))
+        return cleaned
 
     jobs = []
     for key in selected:
         label = FUND_CATEGORY_MAP[key]
-        jobs.extend([
-            (key, f'reksa dana {label} Indonesia NAB return 1 tahun manajer investasi'),
-            (key, f'produk reksa dana {label} Indonesia fund fact sheet'),
-            (key, f'site:bareksa.com reksa dana {label}'),
-            (key, f'site:bibit.id reksa dana {label}'),
-        ])
+        # Search Google Indonesia per platform tepercaya agar tidak nyasar ke Gmail, film, apartemen, dll.
+        for domain in trusted_sites:
+            jobs.append((key, f'site:{domain} reksadana "{label}" Indonesia NAB return 1 tahun'))
+        jobs.append((key, f'reksadana "{label}" Indonesia manajer investasi NAB AUM'))
 
     search_chunks, seed_chunks = await asyncio.gather(
-        asyncio.gather(*(search_query(key, q) for key, q in jobs), return_exceptions=True),
+        asyncio.gather(*(search_query(key, q, 5) for key, q in jobs), return_exceptions=True),
         asyncio.gather(*(
             _fetch_seed_fund(seed)
             for seed in FUND_SEED_PRODUCTS
@@ -848,16 +945,14 @@ async def fund_search(categories_text=""):
         ), return_exceptions=True),
     )
 
-    out = []
-    seen = set()
+    out, seen = [], set()
     per_category_count = {key: 0 for key in selected}
 
-    # Seed official products first so UI never becomes completely empty when search engines block.
     for item in seed_chunks:
         if not isinstance(item, dict):
             continue
         key = item.get("url") or item.get("product_name")
-        if key in seen:
+        if not key or key in seen:
             continue
         seen.add(key)
         cat = item.get("fund_category")
@@ -868,35 +963,36 @@ async def fund_search(categories_text=""):
         if not isinstance(chunk, list):
             continue
         for item in chunk:
+            if not _fund_result_relevant(item):
+                continue
             key = item.get("url") or item.get("title")
             if not key or key in seen:
                 continue
             cat = item.get("fund_category")
-            if per_category_count.get(cat, 0) >= 10:
+            if per_category_count.get(cat, 0) >= 8:
                 continue
             seen.add(key)
             per_category_count[cat] = per_category_count.get(cat, 0) + 1
             out.append(item)
 
-    out.sort(key=lambda x: (
+    out.sort(key=lambda x:(
         0 if x.get("official_hint") else 1,
         0 if x.get("manager") else 1,
         0 if x.get("return_facts") else 1,
         selected.index(x.get("fund_category")) if x.get("fund_category") in selected else 99,
     ))
-
-    managers = sorted({x.get("manager") for x in out if x.get("manager")})
-
+    managers=sorted({x.get("manager") for x in out if x.get("manager")})
     return {
-        "fetched_at": nowiso(),
-        "search_mode": "all-mi-ddg+bing+official-seeds",
-        "coverage_mode": "ALL_MI_DISCOVERY_NOT_LIMITED_TO_FIXED_LIST",
-        "selected_categories": selected,
-        "managers_detected": managers,
-        "manager_count_detected": len(managers),
-        "items": out[:32],
-        "note": "Discovery tetap lintas semua MI. Produk seed resmi hanya fallback agar hasil tidak kosong saat search engine publik gagal.",
+        "fetched_at":nowiso(),
+        "search_mode":"google-id+trusted-indonesia-investment-sources",
+        "coverage_mode":"INDONESIA_ONLY_TRUSTED_SOURCES",
+        "selected_categories":selected,
+        "managers_detected":managers,
+        "manager_count_detected":len(managers),
+        "items":out[:24],
+        "note":"Hanya sumber investasi Indonesia/MI tepercaya. Hasil non-investasi otomatis dibuang.",
     }
+
 
 
 def _parse_dividend_per_share(text):
@@ -918,27 +1014,31 @@ def _parse_dividend_per_share(text):
 async def find_dividend_info(symbol, price=None):
     year=datetime.now().year
     queries=[
-        f'"{symbol}" dividen tunai {year} per saham IDX',
-        f'"{symbol}" dividen {year} per saham',
-        f'"{symbol}" dividend yield Indonesia {year}',
+        f'site:idx.co.id "{symbol}" dividen {year}',
+        f'site:ajaib.co.id "{symbol}" dividen {year}',
+        f'site:bareksa.com "{symbol}" dividen {year}',
+        f'"{symbol}" dividen tunai {year} per saham Indonesia',
     ]
     seen=set(); results=[]
     for q in queries:
-        for item in await ddg_search(q, f'Dividen • {symbol}', 3):
+        items=await search_any(q, f'Dividen • {symbol}', 4)
+        for item in items:
+            if not _allowed_indonesia_investment_url(item.get("url") or ""):
+                continue
             key=item.get('url') or item.get('title')
             if key in seen: continue
             seen.add(key); results.append(item)
         if results: break
-    snippet=' '.join([(x.get('title','')+' '+x.get('snippet','')).strip() for x in results[:2]])
+    snippet=' '.join([(x.get('title','')+' '+x.get('snippet','')).strip() for x in results[:3]])
     dps=_parse_dividend_per_share(snippet)
     dy=(dps/float(price)*100.0) if dps is not None and price else None
     return {
-        'dividend_per_share': dps,
-        'dividend_yield_estimate': dy,
-        'dividend_title': results[0].get('title') if results else None,
-        'dividend_snippet': results[0].get('snippet') if results else None,
-        'dividend_source_url': results[0].get('url') if results else None,
-        'dividend_sources': results[:3],
+        'dividend_per_share':dps,
+        'dividend_yield_estimate':dy,
+        'dividend_title':results[0].get('title') if results else None,
+        'dividend_snippet':results[0].get('snippet') if results else None,
+        'dividend_source_url':results[0].get('url') if results else None,
+        'dividend_sources':results[:3],
     }
 
 
@@ -999,7 +1099,7 @@ async def combined_research(names_text, symbols_text, rate_ranges_text='', stock
         bounded(fund_search(fund_categories_text),16,{"fetched_at":nowiso(),"items":[],"search_mode":"timeout-fallback","coverage_mode":"ALL_MI_DISCOVERY_NOT_LIMITED_TO_FIXED_LIST"}),
         bounded(get_stocks(),22,{"fetched_at":nowiso(),"items":[],"candidates":[],"mode":stock_lot_mode}),
     )
-    return {"fetched_at":nowiso(),"research_mode":"parallel-bounded-v10.25-all-mi","stocks":stocks,"banks":banks,"funds":funds}
+    return {"fetched_at":nowiso(),"research_mode":"parallel-bounded-v10.29-id-only","stocks":stocks,"banks":banks,"funds":funds}
 
 async def send_json(send, data, status=200):
     body = json.dumps(data, ensure_ascii=False).encode("utf-8")

@@ -225,3 +225,32 @@ Perubahan:
 - reksadana memakai DuckDuckGo + Bing fallback + seed halaman resmi agar tidak 0 hasil ketika search engine gagal;
 - discovery reksadana tetap tidak dibatasi daftar MI tertentu;
 - Generate Catatan AI sekarang membaca JSON bertingkat `output.catatan_analisis_keuangan` dan memasukkan teksnya langsung ke form.
+
+
+## Update v10.28 — Hotfix Generate Catatan AI
+
+Tidak ada migration database baru.
+
+Perubahan:
+- parser Catatan AI kini menerima JSON bersih, JSON bertingkat `output.catatan_analisis_keuangan`, JSON yang terbungkus field `response`, dan JSON yang tercampur reasoning/model text;
+- fallback regex mengekstrak `catatan_analisis_keuangan` bila JSON model tidak 100% bersih;
+- respons paragraf biasa tetap diterima;
+- pesan gagal lama otomatis hilang ketika Catatan diisi/diedit manual;
+- textarea selalu menyimpan teks catatan, bukan object JSON.
+
+
+## Update v10.29 — Indonesia-only Research + Bank Simulation Terverifikasi + AI Bahasa Indonesia
+
+Tidak ada migration Supabase baru.
+
+Perubahan:
+- reksadana memakai Google Search Indonesia sebagai discovery utama;
+- hasil reksadana dibatasi sumber investasi Indonesia tepercaya (Makmur, Ajaib, Bareksa, Bibit, BNI AM, Syailendra, Mandiri Investasi, dan MI resmi lain);
+- hasil sampah seperti Gmail, film, apartemen, Wikipedia asing, Google Maps, dan situs non-investasi dibuang sebelum masuk UI/AI;
+- saham tetap memakai Google Finance IDX untuk harga dan sumber Indonesia seperti IDX/Ajaib/Bareksa untuk pencarian dividen;
+- simulasi bank TIDAK lagi memakai bank hasil karangan AI; hanya memakai rate yang ditemukan dari research bank Indonesia dan lolos range bunga pengguna;
+- bank luar negeri seperti Bank of America, Chase, Ally tidak mungkin masuk simulasi;
+- preview card bank dipendekkan; detail panjang hanya di tombol Detail;
+- output Ollama yang masih berbahasa Inggris otomatis dipaksa melalui repair pass Bahasa Indonesia;
+- prompt mengabaikan instruksi/noise dari snippet internet dan melarang analisis SERP/raw dump/spam/privacy;
+- Generate Catatan AI tetap memakai parser v10.28.
