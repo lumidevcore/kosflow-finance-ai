@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.35</title>
+<title>KosFlow Finance v10.36</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -837,7 +837,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
       <section class="card section hidden" id="stockCandidatesWrap">
         <div class="sec-head">
-          <h3>Rekomendasi Saham 1 Lot</h3>
+          <h3>Kandidat Saham IDX • 1 Lot</h3>
           <span id="stockCandidateMeta">—</span>
         </div>
         <div class="grid4" id="stockCandidates"></div>
@@ -854,7 +854,7 @@ input::placeholder,textarea::placeholder{color:#8d9cb4}
 
       <section class="card section hidden" id="researchWrap">
         <div class="sec-head">
-          <h3>Produk Bank Digital • Fakta Penting</h3>
+          <h3>Produk Bank Digital • Khusus Bank</h3>
           <span>Ringkas • sumber resmi diprioritaskan</span>
         </div>
         <div class="grid4" id="research"></div>
@@ -2160,6 +2160,81 @@ function calcBudget(){
   };
 }
 
+function renderStockCandidateCards(stocks,budget){
+  const candidates=(stocks?.candidates||stocks?.items||[]).filter(x=>nnum(x.price)>0);
+  const lotBudget=Math.max(0,nnum(budget?.safe_investment_amount));
+  const count=Math.max(1,+document.getElementById('stockRecommendationCount').value||5);
+
+  document.getElementById('stockCandidateMeta').textContent =
+    `${Math.min(candidates.length,count)} kandidat • dana aman ${idr(lotBudget)}`;
+
+  document.getElementById('stockCandidates').innerHTML=candidates.slice(0,count).map(x=>{
+    const lotCost=x.lot_cost!=null?Number(x.lot_cost):Number(x.price||0)*100;
+    const gap=Math.max(0,lotCost-lotBudget);
+    const enough=lotCost>0&&lotBudget>=lotCost;
+    const status=enough?'✅ Dana cukup':lotCost>0?`💡 Kurang ${idr(gap)}`:'ℹ️ Biaya belum tersedia';
+    const div=x.dividend_per_share!=null?idr(Number(x.dividend_per_share)||0)+'/saham':'Belum ada data';
+    const yieldValue=x.dividend_yield_percent ?? x.dividend_yield_estimate;
+    const yieldText=yieldValue!=null?Number(yieldValue).toFixed(2)+'%':'Belum ada data';
+    const detail=`
+      <div class="detail-kv">
+        <b>Harga / lembar</b><span>${x.price!=null?idr(x.price):'-'}</span>
+        <b>Dana 1 lot</b><span>${lotCost?idr(lotCost):'-'}</span>
+        <b>Dana aman saat ini</b><span>${idr(lotBudget)}</span>
+        <b>Status dana</b><span>${escapeHtml(status)}</span>
+        <b>Perubahan</b><span>${x.change_percent!=null?Number(x.change_percent).toFixed(2)+'%':'-'}</span>
+        <b>Dividen indikatif</b><span>${escapeHtml(div)}</span>
+        <b>Dividend yield</b><span>${escapeHtml(yieldText)}</span>
+        <b>Sumber harga</b><span>${escapeHtml(x.source||'-')}</span>
+        <b>Sumber dividen</b><span>${escapeHtml(x.dividend_source_url||x.dividend_source||'-')}</span>
+      </div>
+      <p>Ini kandidat pencarian saham IDX. Saldo tidak dikurangi otomatis dan tidak dianggap sudah membeli saham.</p>`;
+    return `<div class="source">
+      <b>${escapeHtml(x.symbol||'-')}</b>
+      <small>${x.price!=null?idr(x.price)+'/lembar':'Harga belum tersedia'}</small>
+      <small><strong>1 lot: ${lotCost?idr(lotCost):'-'}</strong></small>
+      <small>${status}</small>
+      <small>Dividen: ${escapeHtml(div)}</small>
+      <div class="card-actions">${detailButton('Detail '+(x.symbol||'Saham'),detail)}</div>
+    </div>`;
+  }).join('')||'<div class="source" style="grid-column:1/-1"><b>Belum ada kandidat saham</b><small>Hasil saham belum tersedia pada analisis ini.</small></div>';
+}
+
+function renderBankResearchCards(banks){
+  const bankItems=(banks?.items||[])
+    .filter(x=>(Array.isArray(x.rate_facts)&&x.rate_facts.length)||x.dynamic_rate)
+    .slice(0,16);
+
+  document.getElementById('research').innerHTML=bankItems.map(x=>{
+    const title=x.product_name||x.title||'Produk bank';
+    const facts=(x.important_facts||[]).filter(Boolean).slice(0,6);
+    const rates=(x.rate_facts||[]).slice(0,5);
+    const rateLabel=rates.length?rates.map(f=>f.rate).join(' • '):(x.rate_text||'Bunga dinamis');
+    const previewFact=x.product_name==='Saku Booster'
+      ? 'Tabungmatic menabungkan selisih pembulatan transaksi ke Saku Booster.'
+      : (facts[0]||'');
+    const bankName=String(x.category||'').replace(/^Bank digital\s*•\s*/,'')||'Bank';
+    const detail=`
+      <div class="detail-kv">
+        <b>Bank</b><span>${escapeHtml(bankName)}</span>
+        <b>Produk</b><span>${escapeHtml(title)}</span>
+        <b>Bunga</b><span>${escapeHtml(rateLabel)}</span>
+        <b>Sumber resmi</b><span>${escapeHtml(x.url||'-')}</span>
+        ${x.minimum_deposit_label?`<b>Minimum setoran</b><span>${escapeHtml(x.minimum_deposit_label)}</span>`:''}
+        ${x.minimum_deposit&&!x.minimum_deposit_label?`<b>Minimum setoran</b><span>${idr(x.minimum_deposit)}</span>`:''}
+        ${x.funding_mechanism?`<b>Mekanisme dana masuk</b><span>${escapeHtml(x.funding_mechanism)}</span>`:''}
+      </div>
+      ${facts.length?'<ul>'+facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')+'</ul>':''}`;
+    return `<div class="source">
+      <b>${escapeHtml(title)}</b>
+      <small>${escapeHtml(bankName)}</small>
+      <small><strong>${escapeHtml(rateLabel)}</strong></small>
+      ${previewFact?`<small>${escapeHtml(previewFact)}</small>`:''}
+      <div class="card-actions">${detailButton(title,detail)}</div>
+    </div>`;
+  }).join('')||'<div class="source" style="grid-column:1/-1"><b>Belum ada produk bank valid</b><small>Hasil saham dan reksadana tidak akan pernah ditampilkan di bagian bank.</small></div>';
+}
+
 function renderSavedAnalysis(saved){
   if(!saved || !saved.budget) return;
   const {budget,crypto,stocks,banks,funds,parsed,raw,model}=saved;
@@ -2180,17 +2255,9 @@ function renderSavedAnalysis(saved){
   document.getElementById('kosSourceView').textContent=`${budget.kos_source_label||'-'} • ${budget.kos_funding_scope_label||''}`;
   document.getElementById('snapTime').textContent=crypto?.fetched_at||'—';
   document.getElementById('snapGrid').innerHTML=(crypto?.items||[]).map(x=>`<div class="snap"><b>${x.symbol} snapshot</b><small>${idr(x.price_idr||0)}</small><small>24j ${Number(x.change_24h||0).toFixed(2)}%</small><small>${x.source||''}</small></div>`).join('');
-  const refs=[...(stocks?.items||[]),...(banks?.items||[]),...(funds?.items||[])];
-  document.getElementById('research').innerHTML = refs.map(x=>{
-      const isBank=String(x.category||'').toLowerCase().includes('bank');
-      const important=isBank ? renderBankRateFacts(x) : '';
-      const fallback=important ? '' : `<small>${compactSnippet(x.snippet||(x.price!=null?idr(x.price):''),120)}</small>`;
-      return `<div class="source">
-        <b>${escapeHtml(isBank ? (x.category||x.title||'Bank') : (x.symbol||x.category||x.title||'Sumber'))}</b>
-        ${important || fallback}
-        <small>${sourceHost(x.url||x.source||'')}</small>
-      </div>`;
-    }).join('');
+  renderStockCandidateCards(stocks||{},budget);
+  renderFundDiscovery(funds||{});
+  renderBankResearchCards(banks||{});
   if(isExpectedAnalysisShape(parsed)) renderAnalysisCardsFromJSON(parsed,raw||''); else renderFallbackCards(raw||'',budget);
   renderMarketSimulation(crypto||{},stocks||{},budget);
   renderBankSimulation(banks||{},budget);
@@ -2665,74 +2732,10 @@ ${JSON.stringify(payload)}
       </div>
     `).join('');
 
-    const candidates = stocks.candidates || stocks.items || [];
-    const lotBudget = Math.max(0, budget.safe_investment_amount || 0);
-    document.getElementById('stockCandidateMeta').textContent =
-      document.getElementById('stockLotMode').value === 'auto'
-        ? `Maks. ${idr(lotBudget)} per 1 lot`
-        : 'Daftar saham manual';
-    document.getElementById('stockCandidates').innerHTML =
-      candidates.slice(0, +document.getElementById('stockRecommendationCount').value || 5).map(x=>{
-        const lotCost=x.lot_cost!=null?Number(x.lot_cost):(x.price!=null?Number(x.price)*100:0);
-        const available=Math.max(0,Number(budget.safe_investment_amount||0));
-        const gap=Math.max(0,lotCost-available);
-        const enough=lotCost>0 && available>=lotCost;
-        const status=enough?'✅ Dana cukup':lotCost>0?`💡 Kurang ${idr(gap)}`:'ℹ️ Biaya belum tersedia';
-        const div=x.dividend_per_share!=null?idr(Number(x.dividend_per_share)||0)+'/saham':'Belum ada data';
-        const yieldText=x.dividend_yield_percent!=null?Number(x.dividend_yield_percent).toFixed(2)+'%':'Belum ada data';
-        const detail=`
-          <div class="detail-kv">
-            <b>Harga / lembar</b><span>${x.price!=null?idr(x.price):'-'}</span>
-            <b>Dana 1 lot</b><span>${lotCost?idr(lotCost):'-'}</span>
-            <b>Dana tersedia</b><span>${idr(available)}</span>
-            <b>Status dana</b><span>${escapeHtml(status)}</span>
-            <b>Perubahan</b><span>${x.change_percent!=null?Number(x.change_percent).toFixed(2)+'%':'-'}</span>
-            <b>Dividen indikatif</b><span>${escapeHtml(div)}</span>
-            <b>Dividend yield</b><span>${escapeHtml(yieldText)}</span>
-            <b>Sumber harga</b><span>${escapeHtml(x.source||'-')}</span>
-            <b>Sumber dividen</b><span>${escapeHtml(x.dividend_source||'-')}</span>
-          </div>
-          <p>Ini hanya kandidat pencarian. Saldo tidak dipotong otomatis dan tidak dianggap sudah membeli saham.</p>`;
-        return `<div class="source">
-          <b>${escapeHtml(x.symbol||'-')}</b>
-          <small>${x.price!=null?idr(x.price)+'/lembar':'Harga belum tersedia'}</small>
-          <small><strong>1 lot: ${lotCost?idr(lotCost):'-'}</strong></small>
-          <small>${status}</small>
-          <small>Dividen: ${escapeHtml(div)}</small>
-          <div class="card-actions">${detailButton('Detail '+(x.symbol||'Saham'),detail)}</div>
-        </div>`;
-      }).join('') || '<div class="source"><b>Belum ada kandidat</b><small>Sistem belum menemukan kandidat saham untuk ditampilkan.</small></div>';
+    renderStockCandidateCards(stocks,budget);
 
     renderFundDiscovery(funds);
-    const bankItems=(banks.items||[])
-      .filter(x=>(Array.isArray(x.rate_facts)&&x.rate_facts.length) || x.dynamic_rate)
-      .slice(0,12);
-
-    document.getElementById('research').innerHTML=bankItems.map(x=>{
-      const title=x.product_name||x.title||'Produk bank';
-      const facts=(x.important_facts||[]).filter(Boolean).slice(0,6);
-      const rates=(x.rate_facts||[]).slice(0,3);
-      const rateLabel=rates.length ? rates.map(f=>f.rate).join(' • ') : (x.rate_text||'Bunga dinamis');
-      const previewFact =
-        x.product_name==='Saku Booster'
-          ? 'Tabungmatic menabungkan selisih pembulatan transaksi ke Saku Booster.'
-          : (facts[0]||'');
-      const detail=`
-        <div class="detail-kv">
-          <b>Produk</b><span>${escapeHtml(title)}</span>
-          <b>Bunga</b><span>${escapeHtml(rateLabel)}</span>
-          <b>Sumber resmi</b><span>${escapeHtml(x.url||'-')}</span>
-          ${x.minimum_deposit_label?`<b>Minimum setoran</b><span>${escapeHtml(x.minimum_deposit_label)}</span>`:''}
-          ${x.funding_mechanism?`<b>Mekanisme dana masuk</b><span>${escapeHtml(x.funding_mechanism)}</span>`:''}
-        </div>
-        ${facts.length?'<ul>'+facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')+'</ul>':''}`;
-      return `<div class="source">
-        <b>${escapeHtml(compactSnippet(title,58))}</b>
-        <small><strong>${escapeHtml(rateLabel)}</strong></small>
-        ${previewFact?`<small>${escapeHtml(previewFact)}</small>`:''}
-        <div class="card-actions">${detailButton(title,detail)}</div>
-      </div>`;
-    }).join('')||'<div class="source"><b>Belum ada bunga bank terverifikasi</b><small>Produk tanpa angka bunga tidak ditampilkan.</small></div>';
+    renderBankResearchCards(banks);
 
     let rawAI=ai.response || '';
     let parsed=tryParseJSON(rawAI);

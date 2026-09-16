@@ -339,3 +339,18 @@ Perubahan:
 - Simulasi Saku Booster memakai asumsi bahwa saldo sebesar bagian dana simulasi sudah terkumpul melalui Tabungmatic/reward.
 - UI membedakan `simulasi saldo terkumpul` dari `penempatan langsung`, supaya tidak memberi kesan bahwa Saku Booster menerima setoran manual biasa.
 - Bunga 10% p.a. tetap dipakai untuk simulasi selama rate terverifikasi.
+
+
+## Update v10.36 — Isolasi Section Saham / Reksadana / Bank
+
+Tidak ada migration database baru.
+
+Perbaikan:
+- bug `renderSavedAnalysis()` yang sebelumnya mencampur `stocks + banks + funds` ke grid Bank dihapus;
+- section Bank sekarang hanya menerima `banks.items`;
+- section Reksadana hanya dirender oleh `renderFundDiscovery(funds)`;
+- section Saham memakai satu renderer yang sama untuk hasil analisis baru maupun hasil restore;
+- jumlah kandidat saham di card atas sekarang konsisten dengan kandidat yang dipakai pada simulasi saham;
+- data SCMA/BUKA/GOTO tidak dapat muncul lagi di grid Bank;
+- data reksadana Syailendra/Mandiri/BNI-AM tidak dapat muncul lagi di grid Bank;
+- restore dari localStorage/Supabase ikut memakai renderer terpisah, sehingga hasil lama tidak mencampur section lagi.
