@@ -311,3 +311,31 @@ Perubahan:
 - Minimum setoran Saku Booster ditampilkan sebagai `Tidak ada minimum setoran khusus`, bukan seolah-olah deposito dengan minimum Rp0.
 - Card Detail Bank Saqu menampilkan mekanisme dana masuk `Tabungmatic + reward/cashback`.
 - Prompt AI dilarang menyebut Saku Booster hanya sebagai kantong cashback.
+
+
+## Update v10.34 — Simulasi Investasi Crypto/Saham + Semua Kandidat Bank
+
+Tidak ada migration database baru.
+
+Perubahan:
+- Crypto sekarang menjawab pertanyaan "kalau dana aman diinvestasikan, nilainya jadi berapa dan naik/turun berapa rupiah" untuk skenario rendah/utama/tinggi.
+- Dana contoh Crypto mengikuti `safe_investment_amount`.
+- Saham sekarang menampilkan simulasi nilai 1 lot beserta keuntungan/kerugian rupiah pada setiap skenario.
+- Saham juga menunjukkan apakah dana aman saat ini cukup untuk membeli 1 lot dan berapa kekurangannya.
+- Simulasi bank tidak lagi hanya menampilkan dua produk yang eligible.
+- Semua produk bank hasil riset ikut ditampilkan:
+  - produk eligible ikut total compounding;
+  - produk yang belum eligible tetap tampil dengan alasan, misalnya minimum dana, bunga dinamis, atau mekanisme Tabungmatic.
+- Saku Booster sekarang terlihat di section simulasi bank sebagai produk Bank Saqu, tetapi tidak dicampur ke total penempatan langsung karena mekanisme dana masuknya melalui Tabungmatic/reward.
+- Busposito dan Deposito Reguler menampilkan kekurangan dana jika nominal simulasi belum memenuhi minimum.
+
+
+## Update v10.35 — Saku Booster Ikut Simulasi
+
+Tidak ada migration database baru.
+
+Perubahan:
+- Saku Booster sekarang ikut simulasi compounding.
+- Simulasi Saku Booster memakai asumsi bahwa saldo sebesar bagian dana simulasi sudah terkumpul melalui Tabungmatic/reward.
+- UI membedakan `simulasi saldo terkumpul` dari `penempatan langsung`, supaya tidak memberi kesan bahwa Saku Booster menerima setoran manual biasa.
+- Bunga 10% p.a. tetap dipakai untuk simulasi selama rate terverifikasi.
