@@ -354,3 +354,16 @@ Perbaikan:
 - data SCMA/BUKA/GOTO tidak dapat muncul lagi di grid Bank;
 - data reksadana Syailendra/Mandiri/BNI-AM tidak dapat muncul lagi di grid Bank;
 - restore dari localStorage/Supabase ikut memakai renderer terpisah, sehingga hasil lama tidak mencampur section lagi.
+
+
+## Update v10.37 — Compounding Transparan + Ollama Wajib Bahasa Indonesia
+
+Tidak ada migration database baru.
+
+Perubahan:
+- label `Estimasi bunga` menjadi `Bunga majemuk`;
+- detail simulasi bank menampilkan rumus `P × (1 + r/n)^(n×t)`;
+- menampilkan return efektif periode sehingga hasil compounding terlihat jelas;
+- detektor bahasa Inggris diperluas untuk menangkap output seperti `success`, `Stock Analysis`, `Risk Management`, `Insufficient funds`, dll.;
+- output Ollama berbahasa Inggris otomatis di-repair/diterjemahkan ke Bahasa Indonesia;
+- bila repair masih gagal, UI memakai fallback Bahasa Indonesia dan tidak menampilkan analisis Inggris.
