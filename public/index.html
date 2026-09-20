@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.38</title>
+<title>KosFlow Finance v10.39</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -1893,7 +1893,7 @@ const stepDefs = [
   ['banks','Mencari bank digital','Mencari bunga Jago, Saqu, Neo, Krom, SeaBank'],
   ['funds','Mencari reksadana','Menyisir semua MI: pasar uang, pendapatan tetap, campuran, saham'],
   ['match','Mencocokkan data','Menyusun data terverifikasi untuk Ollama'],
-  ['ollama','Ollama menganalisis','Model lokal 9B bisa memerlukan 2–5 menit; jangan refresh halaman'],
+  ['ollama','Ollama menganalisis','Bridge menerima stream token langsung dari Ollama; jangan refresh halaman saat proses'],
   ['done','Menyiapkan hasil','Menampilkan hasil akhir']
 ];
 function renderSteps(){
@@ -2408,9 +2408,10 @@ function extractGeneratedNote(raw){
   return '';
 }
 
-async function bridgeGenerate({bridge,token,model,prompt,temperature=0.1,schema=null,label='AI'}){
+async function bridgeGenerate({bridge,token,model,prompt,temperature=0.1,schema=null,label='AI',numPredict=null,numCtx=4096}){
   const started=Date.now();
-  const payload={model,prompt,temperature};
+  const payload={model,prompt,temperature,num_ctx:numCtx};
+  if(numPredict!==null) payload.num_predict=numPredict;
   if(schema) payload.schema=schema;
 
   const rr=await fetch(bridge+'/generate',{
@@ -2418,7 +2419,7 @@ async function bridgeGenerate({bridge,token,model,prompt,temperature=0.1,schema=
     headers:{
       'Content-Type':'application/json',
       'X-KosFlow-Token':token,
-      'X-KosFlow-Client':'web-v10.38'
+      'X-KosFlow-Client':'web-v10.39'
     },
     body:JSON.stringify(payload),
     cache:'no-store',
@@ -2478,7 +2479,8 @@ ${JSON.stringify(context)}`;
 
   try{
     const data=await bridgeGenerate({
-      bridge,token,model,prompt,temperature:.15,label:'Generate Catatan AI'
+      bridge,token,model,prompt,temperature:.15,label:'Generate Catatan AI',
+      numPredict:700,numCtx:4096
     });
     const text=extractGeneratedNote(data.response||data);
     if(!text) throw new Error('AI mengembalikan respons, tetapi catatan belum dapat diekstrak. Coba Generate lagi.');
@@ -2726,7 +2728,8 @@ ${JSON.stringify(payload)}
 
     step('ollama',88,'Ollama sedang berpikir — model besar bisa membutuhkan beberapa menit');
     const ai=await bridgeGenerate({
-      bridge,token,model,prompt,temperature:.10,schema:analysisSchema,label:'Analisis Ollama'
+      bridge,token,model,prompt,temperature:.10,schema:analysisSchema,label:'Analisis Ollama',
+      numPredict:1000,numCtx:4096
     });
 
     step('done', 100, 'Menampilkan hasil');
@@ -2787,7 +2790,8 @@ Aturan keras:
 Output yang harus diperbaiki:
 ${rawAI}`;
       const repaired=await bridgeGenerate({
-        bridge,token,model,prompt:repairPrompt,temperature:0,schema:analysisSchema,label:'Repair Bahasa Indonesia'
+        bridge,token,model,prompt:repairPrompt,temperature:0,schema:analysisSchema,label:'Repair Bahasa Indonesia',
+        numPredict:700,numCtx:4096
       }).catch(e=>({error:e.message}));
       if(repaired.response){rawAI=repaired.response;parsed=tryParseJSON(rawAI);}
     }

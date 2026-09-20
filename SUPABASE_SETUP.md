@@ -380,3 +380,18 @@ Perubahan:
 - Bridge tidak mengirim response 500 kedua ke socket yang sudah tertutup.
 - Frontend memakai helper generate tanpa timeout pendek untuk Catatan AI, analisis, dan repair Bahasa Indonesia.
 - Progress Ollama memperingatkan model lokal besar bisa butuh 2–5 menit dan halaman jangan di-refresh.
+
+
+## Update v10.39 — Internal Streaming Ollama + Output Limit
+
+Tidak ada migration database baru.
+
+Perubahan:
+- Bridge memakai `stream: true` ke Ollama dan membaca NDJSON/token chunk secara terus-menerus.
+- Browser tetap menerima satu JSON final setelah generate selesai.
+- Analisis utama memakai `num_predict=1000`, catatan AI 700, repair Bahasa Indonesia 700.
+- `num_ctx` default 4096.
+- `keep_alive` default 10 menit supaya model tidak sering reload.
+- Read timeout stream default 900 detik.
+- Log bridge menampilkan `stream=true`, `num_ctx`, `num_predict`, `eval_count`, dan `done_reason`.
+- Tujuan utama: mencegah model 9B reasoning berjalan liar terlalu panjang dan mengurangi timeout 600 detik.
