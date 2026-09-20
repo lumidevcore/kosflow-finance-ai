@@ -367,3 +367,16 @@ Perubahan:
 - detektor bahasa Inggris diperluas untuk menangkap output seperti `success`, `Stock Analysis`, `Risk Management`, `Insufficient funds`, dll.;
 - output Ollama berbahasa Inggris otomatis di-repair/diterjemahkan ke Bahasa Indonesia;
 - bila repair masih gagal, UI memakai fallback Bahasa Indonesia dan tidak menampilkan analisis Inggris.
+
+
+## Update v10.38 — Bridge 10053 + Long Ollama Request
+
+Tidak ada migration database baru.
+
+Perubahan:
+- `local_bridge/ollama_bridge.py` menjadi v10.38.
+- Timeout Ollama default 600 detik agar model reasoning 9B boleh berjalan beberapa menit.
+- WinError 10053/10054, BrokenPipe, ConnectionAborted, dan ConnectionReset diperlakukan sebagai client disconnect.
+- Bridge tidak mengirim response 500 kedua ke socket yang sudah tertutup.
+- Frontend memakai helper generate tanpa timeout pendek untuk Catatan AI, analisis, dan repair Bahasa Indonesia.
+- Progress Ollama memperingatkan model lokal besar bisa butuh 2–5 menit dan halaman jangan di-refresh.

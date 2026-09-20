@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>KosFlow Finance v10.37</title>
+<title>KosFlow Finance v10.38</title>
 <style>
 :root{
   --bg:#f4f8ff;
@@ -1893,7 +1893,7 @@ const stepDefs = [
   ['banks','Mencari bank digital','Mencari bunga Jago, Saqu, Neo, Krom, SeaBank'],
   ['funds','Mencari reksadana','Menyisir semua MI: pasar uang, pendapatan tetap, campuran, saham'],
   ['match','Mencocokkan data','Menyusun data terverifikasi untuk Ollama'],
-  ['ollama','Ollama menganalisis','Mengirim data ke Ollama lokal di laptop'],
+  ['ollama','Ollama menganalisis','Model lokal 9B bisa memerlukan 2–5 menit; jangan refresh halaman'],
   ['done','Menyiapkan hasil','Menampilkan hasil akhir']
 ];
 function renderSteps(){
@@ -2408,6 +2408,36 @@ function extractGeneratedNote(raw){
   return '';
 }
 
+async function bridgeGenerate({bridge,token,model,prompt,temperature=0.1,schema=null,label='AI'}){
+  const started=Date.now();
+  const payload={model,prompt,temperature};
+  if(schema) payload.schema=schema;
+
+  const rr=await fetch(bridge+'/generate',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'X-KosFlow-Token':token,
+      'X-KosFlow-Client':'web-v10.38'
+    },
+    body:JSON.stringify(payload),
+    cache:'no-store',
+    keepalive:false
+  });
+
+  const data=await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
+  const elapsed=Math.round((Date.now()-started)/1000);
+  if(!rr.ok){
+    throw new Error(
+      data.detail ||
+      data.ollama_error ||
+      data.error ||
+      `${label} gagal (HTTP ${rr.status}, ${elapsed} detik)`
+    );
+  }
+  return {...data,_elapsed_seconds:elapsed};
+}
+
 async function generateNotesAI(){
   const btn=document.getElementById('generateNotesBtn');
   const status=document.getElementById('noteGenerateStatus');
@@ -2447,19 +2477,15 @@ DATA:
 ${JSON.stringify(context)}`;
 
   try{
-    const rr=await fetch(bridge+'/generate',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-KosFlow-Token':token},
-      body:JSON.stringify({model,prompt,temperature:.15})
+    const data=await bridgeGenerate({
+      bridge,token,model,prompt,temperature:.15,label:'Generate Catatan AI'
     });
-    const data=await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
-    if(!rr.ok) throw new Error(data.detail||data.ollama_error||data.error||`HTTP ${rr.status}`);
     const text=extractGeneratedNote(data.response||data);
     if(!text) throw new Error('AI mengembalikan respons, tetapi catatan belum dapat diekstrak. Coba Generate lagi.');
 
     notes.value=text;
     notes.dispatchEvent(new Event('input',{bubbles:true}));
-    status.textContent='Catatan AI berhasil dibuat dari input terbaru. Kamu tetap bisa mengeditnya.';
+    status.textContent=`Catatan AI berhasil dibuat dalam ${data._elapsed_seconds||0} detik. Kamu tetap bisa mengeditnya.`;
     scheduleSave();
   }catch(e){
     status.textContent='Gagal membuat catatan AI: '+e.message;
@@ -2698,20 +2724,10 @@ ${JSON.stringify(payload)}
     const token = document.getElementById('token').value.trim();
     const model = document.getElementById('model').value;
 
-    const rr = await fetch(bridge+'/generate',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-KosFlow-Token':token},
-      body: JSON.stringify({model, prompt, temperature:.10, schema:analysisSchema})
+    step('ollama',88,'Ollama sedang berpikir — model besar bisa membutuhkan beberapa menit');
+    const ai=await bridgeGenerate({
+      bridge,token,model,prompt,temperature:.10,schema:analysisSchema,label:'Analisis Ollama'
     });
-    const ai = await rr.json().catch(()=>({error:'Respons bridge bukan JSON'}));
-    if(!rr.ok){
-      throw new Error(
-        ai.detail ||
-        ai.ollama_error ||
-        ai.error ||
-        `Ollama gagal (HTTP ${rr.status})`
-      );
-    }
 
     step('done', 100, 'Menampilkan hasil');
 
@@ -2770,9 +2786,10 @@ Aturan keras:
 
 Output yang harus diperbaiki:
 ${rawAI}`;
-      const repairRes=await fetch(bridge+'/generate',{method:'POST',headers:{'Content-Type':'application/json','X-KosFlow-Token':token},body:JSON.stringify({model,prompt:repairPrompt,temperature:0,schema:analysisSchema})});
-      const repaired=await repairRes.json().catch(()=>({}));
-      if(repairRes.ok && repaired.response){rawAI=repaired.response;parsed=tryParseJSON(rawAI);}
+      const repaired=await bridgeGenerate({
+        bridge,token,model,prompt:repairPrompt,temperature:0,schema:analysisSchema,label:'Repair Bahasa Indonesia'
+      }).catch(e=>({error:e.message}));
+      if(repaired.response){rawAI=repaired.response;parsed=tryParseJSON(rawAI);}
     }
     if(isExpectedAnalysisShape(parsed) && !analysisNeedsIndonesianRepair(parsed)){
       renderAnalysisCardsFromJSON(parsed, rawAI);
